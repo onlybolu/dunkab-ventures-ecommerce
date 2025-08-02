@@ -1,8 +1,21 @@
+"use client";
 import Link from "next/link";
 import Logo from "./Logo"
 import Navbar from "./nav";
+import { usePathname } from "next/navigation";
+import { useEffect } from "react";
 
 const Header = () => {
+  const pathname = usePathname()
+  // save the current path to session storage
+
+  useEffect(() => {
+    {Navbar.map((item) => {
+      if (pathname === item.link) {
+        sessionStorage.setItem("currentPath", item.link);
+      }
+    })
+  }})
   return (
     <header className="">
       
@@ -24,7 +37,7 @@ const Header = () => {
           <Link
             key={item.id}
             href={item.link}
-            className="text-gray-700 hover:text-red-600 px-4 py-2"
+            className={`${pathname === item.link ? "text-red-600" : "text-gray-700"} hover:text-red-600 px-4 py-2`}
           >
             {item.icon}
           </Link>

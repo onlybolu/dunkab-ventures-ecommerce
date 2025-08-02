@@ -1,7 +1,10 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { usePathname } from "next/navigation";
+import Link from "next/link";
 import ProductCard from "../../../../components/productcard";
+import Image from "next/image";
 
 const PRODUCTS_PER_PAGE = 6;
 
@@ -16,6 +19,18 @@ export default function HomePage() {
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
 
+  // Track current and previous paths
+  const pathname = usePathname();
+  const [previousPath, setPreviousPath] = useState(null);
+
+  useEffect(() => {
+    const lastPath = sessionStorage.getItem("currentPath");
+    if (lastPath) {
+      setPreviousPath(lastPath);
+    }
+    sessionStorage.setItem("lastPath", pathname);
+  }, [pathname]);
+
   const fetchProducts = async () => {
     try {
       setLoading(true);
@@ -29,7 +44,6 @@ export default function HomePage() {
       params.append("limit", PRODUCTS_PER_PAGE);
 
       const res = await fetch(`/api/products?${params.toString()}`);
-
       const data = await res.json();
 
       if (!res.ok) {
@@ -66,62 +80,94 @@ export default function HomePage() {
     fetchProducts();
   };
 
+  // Helper to format the breadcrumb name
+  const formatPathname = (path) => {
+    if (path === "/") return "Home";
+    return path
+      .split("/")
+      .filter(Boolean)
+      .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+      .join(" / ");
+  };
+
   return (
-    <main className="p-6 max-w-7xl mx-auto">
-      <form
-        onSubmit={handleSearch}
-        className="mb-10 grid grid-cols-1 md:grid-cols-5 gap-4"
-      >
-        <input
-          type="text"
-          placeholder="🔍 Search products..."
-          className="border border-gray-300 px-4 py-2 rounded-xl w-full shadow-lg"
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
+    <main className="">
+      <div className="w-full relative">
+        <Image
+          src={"/productbg.png"}
+          alt="Products"
+          width={500}
+          height={500}
+          className="w-full h-100"
         />
-        {/* You can re-enable brand & price filters here */}
-      </form>
-
-      {error && (
-        <div className="text-red-600 text-center mb-6 font-medium">{error}</div>
-      )}
-
-      {loading ? (
-        <div className="text-center text-gray-600 text-xl">Loading products...</div>
-      ) : products.length === 0 ? (
-        <div className="text-center text-gray-600 text-xl">No products found</div>
-      ) : (
-        <>
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-8 mb-10">
-            {products.map((product) => (
-              <ProductCard key={product._id} product={product} />
-            ))}
+        <div className="absolute top-0 left-0 w-full h-100 flex items-center justify-center bg-black/40 bg-opacity-50 text-white text-2xl font-bold">
+          <div className="space-x-2 flex items-center">
+            {previousPath && (
+              <>
+                <Link href={previousPath} className="hover:underline text-blue-200">
+                  {formatPathname(previousPath)}
+                </Link>
+                <span>{">"}</span>
+              </>
+            )}
+            <span>{formatPathname(pathname)}</span>
           </div>
+        </div>
+      </div>
 
-          {/* Pagination */}
-          <div className="flex justify-center gap-4 items-center">
-            <button
-              onClick={() => setPage((prev) => Math.max(prev - 1, 1))}
-              disabled={page === 1}
-              className="px-4 py-2 rounded bg-gray-200 hover:bg-gray-300 disabled:opacity-50"
-            >
-              Prev
-            </button>
+      <div className="p-6 max-w-7xl mx-auto">
+        <form onSubmit={handleSearch} className="mb-10">
+          <input
+            type="text"
+            placeholder="Search products..."
+            className="border border-gray-300 px-4 py-4 rounded-xl w-full shadow-lg"
+            value={query}
+            onChange={(e) => setQuery(e.target.value)}
+          />
+          {/* You can re-enable brand & price filters here */}
+        </form>
 
-            <span className="font-medium text-gray-700">
-              Page {page} of {totalPages}
-            </span>
+        {error && (
+          <div className="text-red-600 text-center mb-6 font-medium">{error}</div>
+        )}
 
-            <button
-              onClick={() => setPage((prev) => Math.min(prev + 1, totalPages))}
-              disabled={page === totalPages}
-              className="px-4 py-2 rounded bg-gray-200 hover:bg-gray-300 disabled:opacity-50"
-            >
-              Next
-            </button>
-          </div>
-        </>
-      )}
+        {loading ? (
+          <div className="text-center text-gray-600 text-xl">Loading products...</div>
+        ) : products.length === 0 ? (
+          <div className="text-center text-gray-600 text-xl">No products found</div>
+        ) : (
+          <>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-10">
+              {products.map((product) => (
+                <ProductCard key={product._id} product={product} />
+              ))}
+            </div>
+
+            {/* Pagination */}
+            <div className="flex justify-center gap-4 items-center">
+              <button
+                onClick={() => setPage((prev) => Math.max(prev - 1, 1))}
+                disabled={page === 1}
+                className="px-4 py-2 rounded bg-gray-200 hover:bg-gray-300 disabled:opacity-50"
+              >
+                Prev
+              </button>
+
+              <span className="font-medium text-gray-700">
+                Page {page} of {totalPages}
+              </span>
+
+              <button
+                onClick={() => setPage((prev) => Math.min(prev + 1, totalPages))}
+                disabled={page === totalPages}
+                className="px-4 py-2 rounded bg-gray-200 hover:bg-gray-300 disabled:opacity-50"
+              >
+                Next
+              </button>
+            </div>
+          </>
+        )}
+      </div>
     </main>
   );
 }
