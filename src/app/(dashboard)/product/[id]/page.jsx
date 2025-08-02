@@ -138,13 +138,13 @@ function ImageSwiper({ images }) {
             onClick={handlePrev}
             className="absolute left-2 top-1/2 transform -translate-y-1/2 bg-white bg-opacity-70 hover:bg-opacity-90 rounded-full p-2 shadow"
           >
-            ◀
+            {"<"}
           </button>
           <button
             onClick={handleNext}
             className="absolute right-2 top-1/2 transform -translate-y-1/2 bg-white bg-opacity-70 hover:bg-opacity-90 rounded-full p-2 shadow"
           >
-            ▶
+            {">"}
           </button>
         </>
       )}
