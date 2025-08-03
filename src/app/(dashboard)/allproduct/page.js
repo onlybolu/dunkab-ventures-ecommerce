@@ -4,6 +4,7 @@ import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 import Link from "next/link";
 import ProductCard from "../../../../components/productcard";
+// import AuthModal from "../../../../components/AuthModal"; // ✅ import modal
 import Image from "next/image";
 
 const PRODUCTS_PER_PAGE = 6;
@@ -18,6 +19,7 @@ export default function HomePage() {
   const [loading, setLoading] = useState(false);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
+  const [showAuthModal, setShowAuthModal] = useState(false); // ✅ for auth popup
 
   // Track current and previous paths
   const pathname = usePathname();
@@ -80,7 +82,6 @@ export default function HomePage() {
     fetchProducts();
   };
 
-  // Helper to format the breadcrumb name
   const formatPathname = (path) => {
     if (path === "/") return "Home";
     return path
@@ -92,6 +93,11 @@ export default function HomePage() {
 
   return (
     <main className="">
+      {/* ✅ Auth Modal Triggered on Wishlist Attempt */}
+      {showAuthModal && (
+        <AuthModal show={showAuthModal} onClose={() => setShowAuthModal(false)} />
+      )}
+
       <div className="w-full relative">
         <Image
           src={"/productbg.png"}
@@ -124,7 +130,6 @@ export default function HomePage() {
             value={query}
             onChange={(e) => setQuery(e.target.value)}
           />
-          {/* You can re-enable brand & price filters here */}
         </form>
 
         {error && (
@@ -139,7 +144,11 @@ export default function HomePage() {
           <>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-10">
               {products.map((product) => (
-                <ProductCard key={product._id} product={product} />
+                <ProductCard
+                  key={product._id}
+                  product={product}
+                  onLoginPopup={() => setShowAuthModal(true)} // ✅ triggers modal from card
+                />
               ))}
             </div>
 

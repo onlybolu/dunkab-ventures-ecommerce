@@ -21,7 +21,7 @@ const Header = () => {
 
   return (
     <header className="">
-      <div className="bg-white shadow-lg px-4 py-2 flex justify-between items-center">
+      <div className="bg-white shadow-lg md:shadow-2xl px-4 py-2 flex justify-between items-center">
         <div className="flex items-center gap-1">
            {/* Mobile Menu Button */}
         <div className="md:hidden flex items-center">
@@ -78,11 +78,11 @@ const Header = () => {
           isMenuOpen ? "translate-x-0" : "translate-x-full"
         }`}
       >
-        <div className="flex shadow-2xl">
+        <div className="flex shadow-2xl items-center justify-between px-3">
           <Logo width={"w-15"} height={"h-20"} />
         <button
           onClick={() => setIsMenuOpen(false)} // Close menu button
-          className="absolute top-4 right-4 text-gray-700 hover:text-red-600"
+          className=" text-gray-700 font-bold hover:text-red-600"
         >
           <svg
             xmlns="http://www.w3.org/2000/svg"
