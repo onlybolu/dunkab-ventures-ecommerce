@@ -13,7 +13,7 @@ export default function ProductCard({ product }) {
       <h2 className="text-xl font-semibold mt-2">{product.title}</h2>
       <p className="text-gray-600 mb-2">₦{product.price.toLocaleString()}</p>
       <Link href={`/product/${product._id}`}>
-        <button className="mt-2 bg-black text-white px-4 py-2 rounded-xl">
+        <button className="mt-2 bg-blue-600 text-white px-4 cursor-pointer py-2 rounded-xl">
           View Product
         </button>
       </Link>

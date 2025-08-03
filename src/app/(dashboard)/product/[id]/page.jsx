@@ -14,9 +14,7 @@ export default function ProductPage() {
   useEffect(() => {
     async function fetchProductData() {
       try {
-        const res = await fetch(`/api/products/${id}`, {
-          cache: "no-store",
-        });
+        const res = await fetch(`/api/products/${id}`, { cache: "no-store" });
 
         if (!res.ok) {
           setProduct(null);
@@ -26,16 +24,29 @@ export default function ProductPage() {
         const prod = await res.json();
         setProduct(prod);
 
-        const categoryEncoded = encodeURIComponent(prod?.category || "");
-        const relatedRes = await fetch(
-          `/api/products?category=${categoryEncoded}&limit=4`,
-          {
-            cache: "no-store",
-          }
-        );
+        if (prod?.category) {
+          const categoryEncoded = encodeURIComponent(prod.category);
+          const relatedRes = await fetch(
+            `/api/products?category=${categoryEncoded}&limit=4`,
+            { cache: "no-store" }
+          );
 
-        const related = relatedRes.ok ? await relatedRes.json() : [];
-        setRelatedProducts(related);
+          let related = [];
+          try {
+            const json = await relatedRes.json();
+            related = Array.isArray(json)
+              ? json
+              : Array.isArray(json.products)
+              ? json.products
+              : [];
+          } catch (e) {
+            related = [];
+          }
+
+          setRelatedProducts(related);
+        } else {
+          setRelatedProducts([]);
+        }
       } catch (error) {
         console.error("Error fetching product:", error);
       } finally {
@@ -46,7 +57,11 @@ export default function ProductPage() {
     if (id) fetchProductData();
   }, [id]);
 
-  if (loading) return <div className="text-center mt-10 text-gray-600">Loading...</div>;
+  if (loading)
+    return (
+      <div className="text-center mt-10 text-gray-600">Loading...</div>
+    );
+
   if (!product) {
     return (
       <h1 className="text-center text-2xl font-semibold text-red-600">
@@ -56,11 +71,13 @@ export default function ProductPage() {
   }
 
   const images = [product.image, product.image1, product.image2].filter(Boolean);
+  const filteredRelated = relatedProducts.filter(
+    (item) => item._id !== product._id
+  );
 
   return (
     <main className="p-6 max-w-7xl mx-auto">
       <div className="md:flex w-full md:gap-10">
-        {/* Product Image Swiper-like section */}
         <ImageSwiper images={images} />
 
         <div className="flex flex-col justify-center md:w-[50%] space-y-4 px-4 py-4 rounded-md">
@@ -75,36 +92,34 @@ export default function ProductPage() {
         </div>
       </div>
 
-      {relatedProducts.length > 1 && (
+      {filteredRelated.length > 0 && (
         <section className="mt-16">
           <h2 className="text-2xl font-semibold text-gray-800 mb-6">
             More like this
           </h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-6">
-            {relatedProducts
-              .filter((item) => item._id !== product._id)
-              .map((item) => (
-                <div
-                  key={item._id}
-                  className="border rounded-lg p-4 shadow hover:shadow-md transition"
+            {filteredRelated.map((item) => (
+              <div
+                key={item._id}
+                className="border rounded-lg p-4 shadow hover:shadow-md transition"
+              >
+                <img
+                  src={item.image}
+                  alt={item.title}
+                  className="w-full h-40 object-cover rounded mb-2"
+                />
+                <h3 className="text-lg font-bold">{item.title}</h3>
+                <p className="text-sm text-gray-600 mb-2">
+                  ₦{(item.price).toLocaleString()}
+                </p>
+                <a
+                  href={`/product/${item._id}`}
+                  className="text-blue-600 hover:underline text-sm"
                 >
-                  <img
-                    src={item.image}
-                    alt={item.title}
-                    className="w-full h-40 object-cover rounded mb-2"
-                  />
-                  <h3 className="text-lg font-bold">{item.title}</h3>
-                  <p className="text-sm text-gray-600 mb-2">
-                    ₦{(item.price).toLocaleString()}
-                  </p>
-                  <a
-                    href={`/products/${item._id}`}
-                    className="text-blue-600 hover:underline text-sm"
-                  >
-                    View Product
-                  </a>
-                </div>
-              ))}
+                  View Product
+                </a>
+              </div>
+            ))}
           </div>
         </section>
       )}
@@ -131,7 +146,6 @@ function ImageSwiper({ images }) {
         className="w-full h-[400px] object-cover rounded-lg shadow-md transition duration-500 ease-in-out"
       />
 
-      {/* Show navigation only if there's more than one image */}
       {images.length > 1 && (
         <>
           <button
@@ -149,7 +163,6 @@ function ImageSwiper({ images }) {
         </>
       )}
 
-      {/* Dots indicator */}
       <div className="flex justify-center gap-2 mt-4">
         {images.map((_, index) => (
           <button

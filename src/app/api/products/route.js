@@ -31,17 +31,24 @@ export async function GET(request) {
       query.category = category;
     }
 
-    const totalProducts = await Product.countDocuments(query);
-    const totalPages = Math.ceil(totalProducts / limit);
+    const isSimpleCategoryQuery = !search && category && limit <= 4;
 
     const products = await Product.find(query)
       .sort({ createdAt: -1 })
-      .skip((page - 1) * limit)
+      .skip(isSimpleCategoryQuery ? 0 : (page - 1) * limit)
       .limit(limit);
 
     if ((search || category) && products.length === 0) {
       return NextResponse.json({ message: "Product not found" }, { status: 404 });
     }
+
+    // 🔁 Return plain array if it's a "More like this" request
+    if (isSimpleCategoryQuery) {
+      return NextResponse.json(products);
+    }
+
+    const totalProducts = await Product.countDocuments(query);
+    const totalPages = Math.ceil(totalProducts / limit);
 
     return NextResponse.json({
       products,
