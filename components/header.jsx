@@ -22,26 +22,7 @@ const Header = () => {
     <header className="">
       <div className="bg-white shadow-lg px-4 py-2 flex justify-between items-center">
         <div className="flex items-center gap-1">
-          <Logo width={"w-15"} height={"h-20"} />
-          <h1 className="text-2xl font-bold">Dunkab</h1>
-        </div>
-
-        {/* Desktop Navbar */}
-        <div className="md:flex hidden items-center gap-1">
-          {Navbar.map((item) => (
-            <Link
-              key={item.id}
-              href={item.link}
-              className={`${
-                pathname === item.link ? "text-red-600" : "text-gray-700"
-              } hover:text-red-600 px-4 py-2`}
-            >
-              {item.icon}
-            </Link>
-          ))}
-        </div>
-
-        {/* Mobile Menu Button */}
+           {/* Mobile Menu Button */}
         <div className="md:hidden flex items-center">
           <button
             onClick={() => setIsMenuOpen(!isMenuOpen)} // Toggle menu visibility
@@ -62,16 +43,36 @@ const Header = () => {
             </svg>
           </button>
         </div>
+          <Logo width={"w-15"} height={"h-20"} />
+          <h1 className="text-2xl font-bold">Dunkab</h1>
+        </div>
+
+        {/* Desktop Navbar */}
+        <div className="md:flex hidden items-center gap-1">
+          {Navbar.map((item) => (
+            <Link
+              key={item.id}
+              href={item.link}
+              className={`${
+                pathname === item.link ? "text-red-600" : "text-gray-700"
+              } hover:text-red-600 px-4 py-2`}
+            >
+              {item.icon}
+            </Link>
+          ))}
+        </div>
+
+       
       </div>
 
       {/* Mobile Menu */}
       <div
       
-      className={`fixed top-0 right-0 h-full w-full bg-black/50 shadow-2xl transform transition-transform duration-300 ${
+      className={`fixed top-0 left-0 h-full w-full bg-black/50  transform transition-transform duration-300 ${
         isMenuOpen ? "translate-x-0" : "translate-x-full"
       }`}>
       <div
-        className={`fixed top-0 right-0 h-full w-64 bg-white shadow-2xl transform transition-transform duration-300 ${
+        className={`fixed top-0 left-0 h-full w-64 bg-white shadow-2xl transform transition-transform duration-300 ${
           isMenuOpen ? "translate-x-0" : "translate-x-full"
         }`}
       >
