@@ -4,6 +4,7 @@ import Logo from "./Logo";
 import Navbar from "./nav";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
+import Profile from "./profile";
 
 const Header = () => {
   const pathname = usePathname();
@@ -44,7 +45,7 @@ const Header = () => {
           </button>
         </div>
           <Logo width={"w-15"} height={"h-20"} />
-          <h1 className="text-2xl font-bold">Dunkab</h1>
+          
         </div>
 
         {/* Desktop Navbar */}
@@ -61,7 +62,8 @@ const Header = () => {
             </Link>
           ))}
         </div>
-
+        {/* Profile Icon */}
+        <Profile hidden={true} />
        
       </div>
 
@@ -76,14 +78,16 @@ const Header = () => {
           isMenuOpen ? "translate-x-0" : "translate-x-full"
         }`}
       >
+        <div className="flex shadow-2xl">
+          <Logo width={"w-15"} height={"h-20"} />
         <button
           onClick={() => setIsMenuOpen(false)} // Close menu button
           className="absolute top-4 right-4 text-gray-700 hover:text-red-600"
         >
           <svg
             xmlns="http://www.w3.org/2000/svg"
-            width="25"
-            height="25"
+            width="30"
+            height="30"
             fill="currentColor"
             className="bi bi-x"
             viewBox="0 0 16 16"
@@ -94,6 +98,7 @@ const Header = () => {
             />
           </svg>
         </button>
+        </div>
         <ul className="flex flex-col gap-4 items-start pt-15 px-4">
           {Navbar.map((item) => (
             <li key={item.id} className="w-full">
