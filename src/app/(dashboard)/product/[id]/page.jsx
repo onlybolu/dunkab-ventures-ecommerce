@@ -1,9 +1,10 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 
 export default function ProductPage() {
+  const router = useRouter()
   const params = useParams();
   const { id } = params;
 
@@ -75,8 +76,16 @@ export default function ProductPage() {
     (item) => item._id !== product._id
   );
 
+   const handleBack = (e) => {
+    e.preventDefault();
+    router.back()
+   }
+
   return (
     <main className="p-6  mx-auto">
+      <div>
+        <button className="bg-blue-600 text-white rounded-md cursor-pointer mb-3 px-4 py-2" onClick={handleBack}>back</button>
+      </div>
       <div className="md:flex w-full md:gap-10">
         <ImageSwiper images={images} />
 

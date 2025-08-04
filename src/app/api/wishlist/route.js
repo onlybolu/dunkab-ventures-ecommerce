@@ -2,7 +2,7 @@
 import { getServerSession } from "next-auth";
 import { authOptions } from "../auth/[...nextauth]/route";
 import dbConnect from "../../../../lib/dbconnect";
-import Wishlist from "../../../models/wishlist";
+// import Wishlist from "../../../models/wishlist";
 
 export async function POST(req) {
   const session = await getServerSession(authOptions);
