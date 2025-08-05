@@ -6,7 +6,7 @@ import Link from "next/link";
 import ProductCard from "../../../../components/productcard";
 import Image from "next/image";
 
-const PRODUCTS_PER_PAGE = 6;
+const PRODUCTS_PER_PAGE = 12;
 
 export default function HomePage() {
   const [products, setProducts] = useState([]);
@@ -138,7 +138,7 @@ export default function HomePage() {
           <div className="text-center text-gray-600 text-xl">No products found</div>
         ) : (
           <>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-10">
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-8 mb-10">
               {products.map((product) => (
                 <ProductCard
                   key={product._id}
