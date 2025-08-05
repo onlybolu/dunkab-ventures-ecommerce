@@ -1,6 +1,6 @@
-const Profile = ({hidden}) => {
+const Profile = ({hidden, md}) => {
   return (
-    <div className={`${hidden ? "block" : "hidden"} md:hidden`}>
+    <div className={`${hidden ? "block" : "hidden"} ${md ? "md:block" : "md:hidden"}`}>
       <svg
         xmlns="http://www.w3.org/2000/svg"
         width="25"

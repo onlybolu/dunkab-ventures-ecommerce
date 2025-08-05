@@ -5,6 +5,7 @@ import Navbar from "./nav";
 import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import Profile from "./profile";
+import Image from "next/image";
 
 const Header = () => {
   const pathname = usePathname();
@@ -49,7 +50,7 @@ const Header = () => {
         </div>
 
         {/* Desktop Navbar */}
-        <div className="md:flex hidden items-center gap-1">
+        <div className="md:flex hidden items-center gap-3">
           {Navbar.map((item) => (
             <Link
               key={item.id}
@@ -61,9 +62,10 @@ const Header = () => {
               {item.icon}
             </Link>
           ))}
+          <Profile hidden={false} md={true} />
         </div>
         {/* Profile Icon */}
-        <Profile hidden={true} />
+        <Profile hidden={true} md={false}/>
        
       </div>
 
@@ -74,7 +76,7 @@ const Header = () => {
         isMenuOpen ? "translate-x-0" : "translate-x-full"
       }`}>
       <div
-        className={`fixed top-0 left-0 h-full w-64 bg-white shadow-2xl transform transition-transform duration-300 ${
+        className={`fixed top-0 left-0 h-full w-84 bg-white shadow-2xl transform transition-transform duration-300 ${
           isMenuOpen ? "translate-x-0" : "translate-x-full"
         }`}
       >
@@ -98,6 +100,9 @@ const Header = () => {
             />
           </svg>
         </button>
+        </div>
+        <div>
+          <Image src={"/ads.png"} alt="Ads" width={300} height={100} className="w-full h-40 object-cover rounded-lg shadow-md mt-4" />
         </div>
         <ul className="flex flex-col gap-4 items-start pt-15 px-4">
           {Navbar.map((item) => (
