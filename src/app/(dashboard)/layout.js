@@ -1,3 +1,4 @@
+import Footer from "../../../components/footer";
 import Header from "../../../components/header";
 import Middow from "../../../components/middow";
 
@@ -15,6 +16,7 @@ export default function RootLayout({ children }) {
             <Header />
         </div>
         {children}
+        <Footer />
       </div>
     </div>
   );

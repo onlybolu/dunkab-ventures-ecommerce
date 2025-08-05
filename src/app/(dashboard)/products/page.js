@@ -4,7 +4,6 @@ import { useEffect, useState } from "react";
 import { usePathname } from "next/navigation";
 import Link from "next/link";
 import ProductCard from "../../../../components/productcard";
-// import AuthModal from "../../../../components/AuthModal"; // ✅ import modal
 import Image from "next/image";
 
 const PRODUCTS_PER_PAGE = 6;
@@ -19,17 +18,14 @@ export default function HomePage() {
   const [loading, setLoading] = useState(false);
   const [page, setPage] = useState(1);
   const [totalPages, setTotalPages] = useState(1);
-  const [showAuthModal, setShowAuthModal] = useState(false); // ✅ for auth popup
+  const [showAuthModal, setShowAuthModal] = useState(false);
 
-  // Track current and previous paths
   const pathname = usePathname();
   const [previousPath, setPreviousPath] = useState(null);
 
   useEffect(() => {
     const lastPath = sessionStorage.getItem("currentPath");
-    if (lastPath) {
-      setPreviousPath(lastPath);
-    }
+    if (lastPath) setPreviousPath(lastPath);
     sessionStorage.setItem("lastPath", pathname);
   }, [pathname]);
 
@@ -72,15 +68,14 @@ export default function HomePage() {
     }
   };
 
+  // Live search & filter with debounce
   useEffect(() => {
-    fetchProducts();
-  }, [page]);
+    const timeout = setTimeout(() => {
+      fetchProducts();
+    }, 500); // 500ms delay after typing
 
-  const handleSearch = (e) => {
-    e.preventDefault();
-    setPage(1);
-    fetchProducts();
-  };
+    return () => clearTimeout(timeout);
+  }, [query, brand, minPrice, maxPrice, page]);
 
   const formatPathname = (path) => {
     if (path === "/") return "Home";
@@ -93,7 +88,6 @@ export default function HomePage() {
 
   return (
     <main className="">
-      {/* ✅ Auth Modal Triggered on Wishlist Attempt */}
       {showAuthModal && (
         <AuthModal show={showAuthModal} onClose={() => setShowAuthModal(false)} />
       )}
@@ -113,24 +107,26 @@ export default function HomePage() {
                 <Link href={previousPath} className="hover:underline text-blue-200">
                   {formatPathname(previousPath)}
                 </Link>
-                <span>{">"}</span>
+                {/* <span>{">"}</span> */}
               </>
             )}
-            <span>{formatPathname(pathname)}</span>
+            {/* <span>{formatPathname(pathname)}</span> */}
           </div>
         </div>
       </div>
 
       <div className="p-6 max-w-7xl mx-auto">
-        <form onSubmit={handleSearch} className="mb-10">
-          <input
-            type="text"
-            placeholder="Search products..."
-            className="border border-gray-300 px-4 py-4 rounded-xl w-full shadow-lg"
-            value={query}
-            onChange={(e) => setQuery(e.target.value)}
-          />
-        </form>
+        {/* Removed <form> and added direct input */}
+        <input
+          type="text"
+          placeholder="Search products..."
+          className="border border-gray-300 px-4 py-4 outline-0 rounded-xl w-full shadow-lg mb-10"
+          value={query}
+          onChange={(e) => {
+            setQuery(e.target.value);
+            setPage(1); // Reset to page 1 on search change
+          }}
+        />
 
         {error && (
           <div className="text-red-600 text-center mb-6 font-medium">{error}</div>
@@ -147,7 +143,7 @@ export default function HomePage() {
                 <ProductCard
                   key={product._id}
                   product={product}
-                  onLoginPopup={() => setShowAuthModal(true)} // ✅ triggers modal from card
+                  onLoginPopup={() => setShowAuthModal(true)}
                 />
               ))}
             </div>

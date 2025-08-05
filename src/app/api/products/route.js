@@ -21,17 +21,16 @@ export async function GET(request) {
 
     if (search) {
       query.$or = [
-        { name: { $regex: search, $options: "i" } },
+        { title: { $regex: search, $options: "i" } },
         { description: { $regex: search, $options: "i" } },
         { category: { $regex: search, $options: "i" } },
+        { brand: { $regex: search, $options: "i" } },
       ];
-    }
-
-    if (category && category !== "all") {
+    } else if (category && category !== "all") {
       query.category = category;
     }
 
-    const isSimpleCategoryQuery = !search && category && limit <= 4;
+    const isSimpleCategoryQuery = !search && category && limit === 4;
 
     const products = await Product.find(query)
       .sort({ createdAt: -1 })
@@ -42,7 +41,6 @@ export async function GET(request) {
       return NextResponse.json({ message: "Product not found" }, { status: 404 });
     }
 
-    // 🔁 Return plain array if it's a "More like this" request
     if (isSimpleCategoryQuery) {
       return NextResponse.json(products);
     }

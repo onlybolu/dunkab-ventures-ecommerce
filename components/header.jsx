@@ -44,7 +44,7 @@ const Header = () => {
             </svg>
           </button>
         </div>
-          <Logo width={"w-15"} height={"h-20"} />
+          <Logo width={"w-15"} height={"h-20"} fontSize={"text-2xl"}/>
           
         </div>
 

@@ -4,7 +4,7 @@ import { useState, useEffect } from "react";
 import { useParams, useRouter } from "next/navigation";
 
 export default function ProductPage() {
-  const router = useRouter()
+  const router = useRouter();
   const params = useParams();
   const { id } = params;
 
@@ -26,9 +26,9 @@ export default function ProductPage() {
         setProduct(prod);
 
         if (prod?.category) {
-          const categoryEncoded = encodeURIComponent(prod.category);
+          const cleanedCategory = encodeURIComponent(prod.category.trim().toLowerCase());
           const relatedRes = await fetch(
-            `/api/products?category=${categoryEncoded}&limit=4`,
+            `/api/products?category=${cleanedCategory}&limit=4`,
             { cache: "no-store" }
           );
 
@@ -44,7 +44,11 @@ export default function ProductPage() {
             related = [];
           }
 
-          setRelatedProducts(related);
+          const filtered = related.filter(
+            (item) => String(item._id) !== String(prod._id)
+          );
+
+          setRelatedProducts(filtered);
         } else {
           setRelatedProducts([]);
         }
@@ -72,27 +76,30 @@ export default function ProductPage() {
   }
 
   const images = [product.image, product.image1, product.image2].filter(Boolean);
-  const filteredRelated = relatedProducts.filter(
-    (item) => item._id !== product._id
-  );
 
-   const handleBack = (e) => {
+  const handleBack = (e) => {
     e.preventDefault();
-    router.back()
-   }
+    router.push("/products");
+  };
 
   return (
-    <main className="p-6  mx-auto">
+    <main className="p-6 mx-auto">
       <div>
-        <button className="bg-blue-600 text-white rounded-md cursor-pointer mb-3 px-4 py-2" onClick={handleBack}>back</button>
+        <button
+          className="bg-blue-600 text-white rounded-md cursor-pointer mb-3 px-4 py-2"
+          onClick={handleBack}
+        >
+          back
+        </button>
       </div>
+
       <div className="md:flex w-full md:gap-10">
         <ImageSwiper images={images} />
 
         <div className="flex flex-col justify-center md:w-[50%] space-y-4 px-4 py-4 rounded-md">
           <h1 className="text-3xl font-bold text-gray-800">{product.title}</h1>
           <p className="text-xl text-gray-700 mb-2">
-            ₦{(product.price).toLocaleString()}
+            ₦{product.price.toLocaleString()}
           </p>
           <p className="text-gray-500 w-full text-wrap">{product.description}</p>
           <button className="bg-blue-600 hover:bg-blue-700 rounded-md py-3 px-6 cursor-pointer text-white transition duration-200">
@@ -101,16 +108,17 @@ export default function ProductPage() {
         </div>
       </div>
 
-      {filteredRelated.length > 0 && (
+      {relatedProducts.length > 0 && (
         <section className="mt-16">
           <h2 className="text-2xl font-semibold text-gray-800 mb-6">
             More like this
           </h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-6">
-            {filteredRelated.map((item) => (
+            {relatedProducts.map((item) => (
               <div
                 key={item._id}
-                className="border rounded-lg p-4 shadow hover:shadow-md transition"
+                className="border border-gray-300 rounded-lg p-4 shadow-lg hover:shadow-2xl transition"
+                onClick={() => router.push(`/product/${item._id}`)}
               >
                 <img
                   src={item.image}
@@ -119,7 +127,7 @@ export default function ProductPage() {
                 />
                 <h3 className="text-lg font-bold">{item.title}</h3>
                 <p className="text-sm text-gray-600 mb-2">
-                  ₦{(item.price).toLocaleString()}
+                  ₦{item.price.toLocaleString()}
                 </p>
                 <a
                   href={`/product/${item._id}`}
@@ -202,25 +210,22 @@ function ImageSwiper({ images }) {
         </div>
       </div>
 
-      {/* Fullscreen modal */}
       {fullscreen && (
         <div
           className="fixed inset-0 bg-black/90 bg-opacity-90 z-50 flex items-center justify-center"
           onClick={() => setFullscreen(false)}
         >
-            <button
-              className="absolute top-2 right-4 text-white text-2xl"
-              onClick={() => setFullscreen(false)}
-            >
-              ✕
-            </button>
+          <button
+            className="absolute top-2 right-4 text-white text-2xl"
+            onClick={() => setFullscreen(false)}
+          >
+            ✕
+          </button>
           <div
             className="relative max-w-5xl w-full max-h-full px-4"
             onClick={(e) => e.stopPropagation()}
           >
             {renderMedia(images[current], "w-full max-h-[90vh] mx-auto")}
-
-
             {images.length > 1 && (
               <div className="px-4">
                 <button
