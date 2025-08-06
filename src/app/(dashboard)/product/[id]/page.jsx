@@ -79,7 +79,7 @@ export default function ProductPage() {
 
   const handleBack = (e) => {
     e.preventDefault();
-    router.push("/products");
+    router.back();
   };
 
   return (
