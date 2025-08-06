@@ -212,7 +212,7 @@ function ImageSwiper({ images }) {
 
       {fullscreen && (
         <div
-          className="fixed inset-0 bg-black/90 bg-opacity-90 z-50 flex items-center justify-center"
+          className="fixed inset-0 bg-black/90 bg-opacity-90 z-150 flex items-center justify-center"
           onClick={() => setFullscreen(false)}
         >
           <button
