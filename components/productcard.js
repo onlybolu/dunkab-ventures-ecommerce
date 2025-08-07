@@ -28,7 +28,7 @@ export default function ProductCard({ product, onLoginPopup }) {
   // };
 
   return (
-    <div className="border border-gray-300 rounded-2xl p-4 shadow-md hover:shadow-2xl transition">
+    <div className="border border-gray-300 rounded-2xl p-4 shadow-md hover:shadow-2xl flex flex-col transition">
       <div className="relative">
         <img
           src={product.image}
@@ -40,14 +40,18 @@ export default function ProductCard({ product, onLoginPopup }) {
       
 
       <h2 className="text-xl font-semibold mt-2">{product.title}</h2>
+      <div className="flex flex-col justify-end h-full">
+      <div className="flex flex-col md:flex-row md:items-center justify-between mt-2">
       <p className="text-gray-600 mb-2">₦{product.price.toLocaleString()}</p>
       <Link href={`/product/${product._id}`}>
         <button className="mt-2 bg-blue-600 text-white px-4 py-2 rounded-xl">
           View Product
         </button>
       </Link>
+      </div>
+      </div>
       <div className="relative">
-      <button
+      {/* <button
           onClick={() => setIsWishlisted(!isWishlisted)}
           className={`absolute bottom-0 right-2 text-xl ${
             isWishlisted ? "text-red-500" : "text-black"
@@ -58,7 +62,7 @@ export default function ProductCard({ product, onLoginPopup }) {
 </svg>): (<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" className="bi bi-heart-fill" viewBox="0 0 16 16">
   <path fillRule="evenodd" d="M8 1.314C12.438-3.248 23.534 4.735 8 15-7.534 4.736 3.562-3.248 8 1.314"/>
 </svg> )}
-        </button>
+        </button> */}
       </div>
     </div>
   );

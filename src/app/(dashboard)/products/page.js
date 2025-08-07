@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation";
 import Link from "next/link";
 import ProductCard from "../../../../components/productcard";
 import Image from "next/image";
+import Logo from "../../../../components/Logo";
 
 const PRODUCTS_PER_PAGE = 12;
 
@@ -100,17 +101,23 @@ export default function HomePage() {
           height={500}
           className="w-full h-100"
         />
-        <div className="absolute top-0 left-0 w-full h-100 flex items-center justify-center bg-black/40 bg-opacity-50 text-white text-2xl font-bold">
+        <div className="absolute top-0 left-0 w-full h-100 flex flex-col items-center justify-center bg-white/30 bg-opacity-50 text-white text-2xl font-bold">
           <div className="space-x-2 flex items-center">
+            <Logo width={"w-15"} height={"h-20"} hidden={"hidden"} fontSize={"text-2xl"} />
             {previousPath && (
               <>
-                <Link href={previousPath} className="hover:underline text-blue-200">
+                <Link href={previousPath} className="hover:underline text-3xl font-semibold text-gray-700">
                   {formatPathname(previousPath)}
                 </Link>
                 {/* <span>{">"}</span> */}
               </>
             )}
             {/* <span>{formatPathname(pathname)}</span> */}
+          </div>
+          <div className="text-gray-600 flex gap-2">
+            <p className="font-medium">Home</p>
+            <p className="font-medium">{">"}</p>
+            <p className="font-medium">Products</p>
           </div>
         </div>
       </div>
@@ -135,7 +142,7 @@ export default function HomePage() {
         {loading ? (
           <div className="text-center text-gray-600 text-xl">Loading products...</div>
         ) : products.length === 0 ? (
-          <div className="text-center text-gray-600 text-xl">No products found</div>
+          <div className="text-center text-gray-600 text-xl">No products available</div>
         ) : (
           <>
             <div className="grid grid-cols-2 md:grid-cols-4 gap-8 mb-10">
