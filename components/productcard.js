@@ -44,7 +44,7 @@ export default function ProductCard({ product, onLoginPopup }) {
       <div className="flex flex-col md:flex-row md:items-center justify-between mt-2">
       <p className="text-gray-600 mb-2">₦{product.price.toLocaleString()}</p>
       <Link href={`/product/${product._id}`}>
-        <button className="mt-2 bg-blue-600 text-white px-4 py-2 rounded-xl">
+        <button className="mt-2 bg-blue-600 max-sm:text-[10px] text-white px-4 py-2 rounded-xl">
           View Product
         </button>
       </Link>
