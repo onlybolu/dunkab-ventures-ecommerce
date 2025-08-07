@@ -204,6 +204,32 @@ export default function LandingPage() {
         </div>
         </Link>
       </section>
+
+
+      <section className="flex justify-evenly flex-col md:flex-row items-center bg-gray-700 text-white py-20">
+        <Image
+        src={"/img1.png"}
+        data-aos="fade-right"
+        className="w-96 px-5"
+        alt="cooler"
+        width={1000}
+        height={100}
+        />
+        <div className="flex flex-col gap-5">
+            <div data-aos="fade-down" className="flex flex-col items-center">
+              <p className="font-medium">New Arrivals</p>
+              <h1 className="text-3xl font-medium">Explore Our Latest Products</h1>
+            </div>
+            <div className="flex justify-center">
+              <Link href="/products">
+                <button data-aos="fade-up" className="rounded border cursor-pointer py-2 px-4 text-[10px] w-28">
+                  Shop Now
+                </button>
+              </Link>
+            </div>
+        </div>
+      </section>
+
     </div>
   );
 }
