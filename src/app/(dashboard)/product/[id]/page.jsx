@@ -3,11 +3,14 @@
 import { useState, useEffect, useContext } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { FavoriteContext } from "../../../../../context/FavoriteContext";
+import { useCart } from "../../../../../context/cartContext";
+import { toast, ToastContainer } from "react-toastify";
 
 export default function ProductPage() {
   const router = useRouter();
   const params = useParams();
   const { id } = params;
+  const { addToCart } = useCart();
 
   const [product, setProduct] = useState(null);
   const [relatedProducts, setRelatedProducts] = useState([]);
@@ -92,6 +95,7 @@ const {favorite, handleFavourite} = useContext(FavoriteContext)
 
   return (
     <main className="p-6 mx-auto">
+      <ToastContainer/>
       <div>
         <button
           className="bg-blue-600 text-white rounded-md cursor-pointer mb-3 px-4 py-2"
@@ -157,7 +161,13 @@ const {favorite, handleFavourite} = useContext(FavoriteContext)
                   </button>
                 </div>
             </div>
-          <button className="bg-blue-600 hover:bg-blue-700 rounded-md py-3 px-6 cursor-pointer text-white transition duration-200">
+          <button
+          onClick={() => {
+            addToCart({ ...product, quantity: count });
+            toast.success("Product added to cart!");
+
+          }}
+          className="bg-blue-600 hover:bg-blue-700 rounded-md py-3 px-6 cursor-pointer text-white transition duration-200">
             Add to Cart
           </button>
           </div>

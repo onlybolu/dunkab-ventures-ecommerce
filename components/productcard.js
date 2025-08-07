@@ -3,8 +3,14 @@
 import Link from "next/link";
 import { useSession } from "next-auth/react";
 import { useState } from "react";
+import { useRouter } from "next/navigation";
+
+
 
 export default function ProductCard({ product, onLoginPopup }) {
+  const router = useRouter()
+  
+
   // const { data: session } = useSession();
   const [isWishlisted, setIsWishlisted] = useState(false);
 
@@ -26,9 +32,17 @@ export default function ProductCard({ product, onLoginPopup }) {
   //     body: JSON.stringify({ productId: product._id }),
   //   });
   // };
+const handleProductClick = () => {
+    if (!product._id) {
+      console.error("Product ID is missing");
+      return;
+    }
+    // Navigate to the product details page
+    router.push(`/product/${product._id}`);
+  };
 
   return (
-    <div className="border border-gray-300 rounded-2xl p-4 shadow-md hover:shadow-2xl flex flex-col transition">
+    <div className="border border-gray-300 rounded-2xl p-4 shadow-md hover:shadow-2xl flex flex-col transition cursor-pointer" onClick={handleProductClick}>
       <div className="relative">
         <img
           src={product.image}

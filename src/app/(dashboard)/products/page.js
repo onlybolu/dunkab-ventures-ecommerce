@@ -116,7 +116,7 @@ export default function HomePage() {
           </div>
           <div className="text-gray-600 flex gap-2">
             <p className="font-medium">Home</p>
-            <p className="font-medium">{">"}</p>
+            <p className="font-bold text-black">{">"}</p>
             <p className="font-medium">Products</p>
           </div>
         </div>
