@@ -1,7 +1,8 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useContext } from "react";
 import { useParams, useRouter } from "next/navigation";
+import { FavoriteContext } from "../../../../../context/FavoriteContext";
 
 export default function ProductPage() {
   const router = useRouter();
@@ -11,7 +12,14 @@ export default function ProductPage() {
   const [product, setProduct] = useState(null);
   const [relatedProducts, setRelatedProducts] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [count, setCount] = useState(1)
 
+  const handleQuantityChange = (newCount) => {
+    if (newCount < 1) return;
+    setCount(newCount);
+  };
+
+const {favorite, handleFavourite} = useContext(FavoriteContext)
   useEffect(() => {
     async function fetchProductData() {
       try {
@@ -98,13 +106,61 @@ export default function ProductPage() {
 
         <div className="flex flex-col justify-center md:w-[50%] space-y-4 px-4 py-4 rounded-md">
           <h1 className="text-3xl font-bold text-gray-800">{product.title}</h1>
-          <p className="text-xl text-gray-700 mb-2">
-            ₦{product.price.toLocaleString()}
+          <p className="text-2xl text-gray-500 font-semibold mb-2">
+            ₦ {product.price.toLocaleString()}
           </p>
-          <p className="text-gray-500 w-full text-wrap">{product.description}</p>
+          <p className="text-gray-700 w-full text-wrap">{product.description}</p>
+          <p className="text-gray-500">Category: {product.category}</p>
+          <div>
+            <button onClick={() => handleFavourite(product._id)} className="flex gap-2 items-center">
+              {favorite.includes(product._id) ? (
+                <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" fill="red" className="bi bi-suit-heart-fill" viewBox="0 0 16 16">
+                <path d="M4 1c2.21 0 4 1.755 4 3.92C8 2.755 9.79 1 12 1s4 1.755 4 3.92c0 3.263-3.234 4.414-7.608 9.608a.513.513 0 0 1-.784 0C3.234 9.334 0 8.183 0 4.92 0 2.755 1.79 1 4 1"/>
+              </svg>
+              ) : (
+                <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" fill="gray" className="bi bi-heart" viewBox="0 0 16 16">
+  <path d="m8 2.748-.717-.737C5.6.281 2.514.878 1.4 3.053c-.523 1.023-.641 2.5.314 4.385.92 1.815 2.834 3.989 6.286 6.357 3.452-2.368 5.365-4.542 6.286-6.357.955-1.886.838-3.362.314-4.385C13.486.878 10.4.28 8.717 2.01zM8 15C-7.333 4.868 3.279-3.04 7.824 1.143q.09.083.176.171a3 3 0 0 1 .176-.17C12.72-3.042 23.333 4.867 8 15"/>
+</svg>
+              )}
+              <p className="text-gray-400">Add wishlist</p>
+            </button>
+          </div>
+          <div className="flex items-center justify-between mt-4">
+            <div>
+              <label htmlFor="quantity" className="text-gray-700 hidden">  
+                {" "}
+                Quantity{" "}
+                </label>
+                <div className="px-5 py-2 flex items-center border border-gray-200 rounded">
+                  <button
+                  type="button"
+                  onClick={() => handleQuantityChange(count > 1 ? count - 1 : 1)}
+                  className="text-black">
+                    &minus;
+                    </button>
+                  <input
+                    type="number"
+                    id="quantity"
+                    disabled={count >= 7}
+                    min="1"
+                    max="7"
+                    value={count}
+                    onChange={(e) => handleQuantityChange(Number(e.target.value))}
+                    className="w-16 text-center text-gray-400 border-0 focus:ring-0 focus:outline-none"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => handleQuantityChange(count < 7 ? count + 1 : 7 )}
+                    className="text-black"
+                  >
+                    +
+                  </button>
+                </div>
+            </div>
           <button className="bg-blue-600 hover:bg-blue-700 rounded-md py-3 px-6 cursor-pointer text-white transition duration-200">
             Add to Cart
           </button>
+          </div>
         </div>
       </div>
 
