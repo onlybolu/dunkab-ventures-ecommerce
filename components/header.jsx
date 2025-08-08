@@ -40,7 +40,7 @@ const Header = () => {
       }
     }
   }, []);
-  const users = localStorage.getItem("user");
+  // const users = localStorage.getItem("user");
   const handleLogout = () => {
     localStorage.removeItem("user");        
     sessionStorage.removeItem("currentPath"); 
@@ -102,12 +102,12 @@ const Header = () => {
           <Profile hidden={false} md={true} />
         </div>
         {/* Profile Icon */}
-        {users.email && (
+        {user.email && (
   <button
     onClick={handleLogout}
     className="text-sm text-gray-600 hover:text-red-600 font-medium"
   >
-    {users?.email}
+    {user?.email}
   </button>
 )}
 
@@ -169,7 +169,7 @@ const Header = () => {
     onClick={handleLogout}
     className="text-sm text-gray-600 hover:text-red-600 font-medium"
   >
-    {users?.email}
+    {user?.email}
   </button>
       </div>
       </div>

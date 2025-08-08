@@ -14,7 +14,7 @@ export function CartProvider({ children }) {
     }
   }, []);
 
-  // ✅ Save to localStorage whenever cart changes
+
   useEffect(() => {
     localStorage.setItem("cartItems", JSON.stringify(cartItems));
   }, [cartItems]);
