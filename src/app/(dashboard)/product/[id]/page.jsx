@@ -27,14 +27,14 @@ export default function ProductPage() {
     try {
       // Client side update
       addToCart({ ...product, quantity: count });
-      toast.success("Product added to cart!");
+      // toast.success("Product added to cart!");
 
       // Get user session (or replace with your own userId logic)
       const res = await fetch("/api/auth/session");
       const session = await res.json();
 
       if (!session?.user?._id) {
-        toast.error("You must be logged in to save cart.");
+        // toast.error("You must be logged in to save cart.");
         return;
       }
 
