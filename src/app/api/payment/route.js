@@ -8,7 +8,7 @@ export async function POST(req) {
     tx_ref: Date.now().toString(),
     amount: body.amount,
     currency: "NGN",
-    redirect_url: "http://localhost:3000/", // Change to your deployed URL
+    redirect_url: "http://dunkabventures.com/", // Change to your deployed URL
     customer: {
       email: body.email,
       name: body.name,
