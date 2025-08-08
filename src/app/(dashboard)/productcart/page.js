@@ -37,7 +37,7 @@ export default function CartPage() {
   
     if (!storedUser) {
       toast.error("Please log in or create an account to checkout.");
-      router.push("/auth");
+      router.push("/authentication");
       return;
     }
   
@@ -48,7 +48,7 @@ export default function CartPage() {
       console.error("Error parsing user from localStorage:", err);
       toast.error("Invalid user data. Please log in again.");
       localStorage.removeItem("user");
-      router.push("/auth");
+      router.push("/authentication");
       return;
     }
   
