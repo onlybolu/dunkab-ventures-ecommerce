@@ -13,7 +13,7 @@ const Profile = ({ hidden, md }) => {
     : 0;
 
   // Total number of items
-  const totalItems = cartItems.reduce((acc, item) => acc + (item.quantity || 1), 0); //  handles quantity
+  const totalItems = cartItems.reduce((acc, item) => acc + (item.quantity || 1), 0); 
 
   const handleCartClick = () => {
     const storedUser = localStorage.getItem("user");
