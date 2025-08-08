@@ -6,7 +6,23 @@ import { sendWelcomeEmail } from "../../../../../lib/mailer";
 
 export async function POST(req) {
   await Connectdb();
-  const { name, email, password } = await req.json();
+
+  let body;
+  try {
+    body = await req.json();
+  } catch (err) {
+    return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
+  }
+
+  const { name, email, password } = body;
+
+  // Check for missing fields
+  if (!name || !email || !password) {
+    return NextResponse.json(
+      { error: "All fields (name, email, password) are required" },
+      { status: 400 }
+    );
+  }
 
   // Validate email
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -27,8 +43,11 @@ export async function POST(req) {
     await sendWelcomeEmail(email, name);
   } catch (error) {
     console.error("Failed to send email:", error);
-    // Still return success — just log the email error
+    // Proceed anyway
   }
 
-  return NextResponse.json({ message: "User registered successfully", userId: user._id });
+  return NextResponse.json({
+    message: "User registered successfully",
+    userId: user._id,
+  });
 }

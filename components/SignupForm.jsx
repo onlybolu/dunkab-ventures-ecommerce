@@ -32,7 +32,7 @@ export default function SignupForm() {
       }
 
       localStorage.setItem("user", JSON.stringify(data.user));
-      router.push("/cart");
+      router.push("/productcart");
     } catch (err) {
         toast.error("Something went wrong. Please try again.");
       setError(err.message); // use setError here too

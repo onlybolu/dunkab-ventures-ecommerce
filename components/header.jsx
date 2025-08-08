@@ -30,8 +30,8 @@ const Header = () => {
     }
   }, []);
   const handleLogout = () => {
-    localStorage.removeItem("user");         // Clear user
-    sessionStorage.removeItem("currentPath"); // Optional: Clear path
+    localStorage.removeItem("user");        
+    sessionStorage.removeItem("currentPath"); 
     window.location.href = "/";             // Redirect to home or login
   };
   
@@ -87,7 +87,7 @@ const Header = () => {
               {item.icon}
             </Link>
           ))}
-          <Profile hidden={false} md={true} />
+          {/* <Profile hidden={false} md={true} /> */}
         </div>
         {/* Profile Icon */}
         {user?.email && (

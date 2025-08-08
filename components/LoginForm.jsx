@@ -32,7 +32,7 @@ export default function LoginForm() {
         // Store user data in localStorage
       localStorage.setItem("user", JSON.stringify(data.user)); 
       
-      router.push("/cart");
+      router.push("/productcart");
         }catch (err) {
       setError("Something went wrong. Please try again.");
     } finally {

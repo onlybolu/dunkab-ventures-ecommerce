@@ -22,6 +22,40 @@ export default function ProductPage() {
     setCount(newCount);
   };
 
+
+  const handleAddToCart = async () => {
+    try {
+      // Client side update
+      addToCart({ ...product, quantity: count });
+      toast.success("Product added to cart!");
+
+      // Get user session (or replace with your own userId logic)
+      const res = await fetch("/api/auth/session");
+      const session = await res.json();
+
+      if (!session?.user?._id) {
+        toast.error("You must be logged in to save cart.");
+        return;
+      }
+
+      const userId = session.user._id;
+
+      // Send to backend
+      await fetch("/api/cart", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          userId,
+          productId: product._id,
+          quantity: count,
+        }),
+      });
+    } catch (err) {
+      console.error("Error saving to cart:", err);
+      toast.error("Failed to save cart in database.");
+    }
+  };
+
 const {favorite, handleFavourite} = useContext(FavoriteContext)
   useEffect(() => {
     async function fetchProductData() {
@@ -162,11 +196,7 @@ const {favorite, handleFavourite} = useContext(FavoriteContext)
                 </div>
             </div>
           <button
-          onClick={() => {
-            addToCart({ ...product, quantity: count });
-            toast.success("Product added to cart!");
-
-          }}
+          onClick={handleAddToCart}
           className="bg-blue-600 hover:bg-blue-700 rounded-md py-3 px-6 cursor-pointer text-white transition duration-200">
             Add to Cart
           </button>
