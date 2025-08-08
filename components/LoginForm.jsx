@@ -29,7 +29,7 @@ export default function LoginForm() {
         return;
       }
       
-        // Store user data in localStorage
+        
       localStorage.setItem("user", JSON.stringify(data.user)); 
       
       router.push("/productcart");

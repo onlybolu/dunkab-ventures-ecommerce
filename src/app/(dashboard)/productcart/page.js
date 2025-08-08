@@ -52,11 +52,11 @@ export default function CartPage() {
       return;
     }
   
-    if (!user || !user.email) {
-      toast.error("Please log in or create an account to checkout.");
-      router.push("/auth");
-      return;
-    }
+    // if (!user || !user.email) {
+    //   toast.error("Please log in or create an account to checkout.");
+    //   router.push("/auth");
+    //   return;
+    // }
   
     // Proceed to checkout
     router.push("/checkout");
@@ -76,7 +76,7 @@ export default function CartPage() {
           className="w-full h-100"
         />
         <div className="absolute top-0 left-0 w-full h-100 flex flex-col items-center justify-center bg-white/30 bg-opacity-50 text-white text-2xl font-bold">
-          <div className="space-x-2 flex items-center">
+          <div className=" flex items-center">
             <Logo
               width={"w-15"}
               height={"h-20"}

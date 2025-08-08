@@ -6,9 +6,20 @@ import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
 import Profile from "./profile";
 import Image from "next/image";
+import { useCart } from "../context/cartContext";
 
 const Header = () => {
   const pathname = usePathname();
+   const { cartItems } = useCart(); 
+   
+   
+     // Total price
+     const total = cartItems.length > 0
+       ? cartItems.reduce((acc, item) => acc + item.price * (item.quantity || 1), 0)
+       : 0;
+   
+     // Total number of items
+     const totalItems = cartItems.reduce((acc, item) => acc + (item.quantity || 1), 0); 
   const [isMenuOpen, setIsMenuOpen] = useState(false); // State to toggle the mobile menu
   const [user, setUser] = useState();
 
@@ -29,6 +40,7 @@ const Header = () => {
       }
     }
   }, []);
+  const users = localStorage.getItem("user");
   const handleLogout = () => {
     localStorage.removeItem("user");        
     sessionStorage.removeItem("currentPath"); 
@@ -87,15 +99,15 @@ const Header = () => {
               {item.icon}
             </Link>
           ))}
-          {/* <Profile hidden={false} md={true} /> */}
+          <Profile hidden={false} md={true} />
         </div>
         {/* Profile Icon */}
-        {user?.email && (
+        {users.email && (
   <button
     onClick={handleLogout}
     className="text-sm text-gray-600 hover:text-red-600 font-medium"
   >
-    {user?.email}
+    {users?.email}
   </button>
 )}
 
@@ -153,6 +165,12 @@ const Header = () => {
             </li>
           ))}
         </ul>
+        <button
+    onClick={handleLogout}
+    className="text-sm text-gray-600 hover:text-red-600 font-medium"
+  >
+    {users?.email}
+  </button>
       </div>
       </div>
     </header>

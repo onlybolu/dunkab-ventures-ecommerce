@@ -1,10 +1,11 @@
 "use client";
-import { useRouter } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useCart } from "../context/cartContext";
 
 const Profile = ({ hidden, md }) => {
   const router = useRouter();
   const { cartItems } = useCart(); 
+  const pathname = usePathname()
 
 
   // Total price
@@ -24,18 +25,28 @@ const Profile = ({ hidden, md }) => {
     router.push("/productcart");
   };
 
+  const handlepathcolor = () => {
+    pathname === "/productcart" ? "red" : 'currentcolor'
+  }
+
+  const handleFill = () => {
+    if(md === true){
+      handlepathcolor()
+    }
+  }
+
   return (
     <div
       className={`${hidden ? "block" : "hidden"} ${
         md ? "md:block" : "md:hidden"
-      } relative`}
+      } relative cursor-pointer`}
       onClick={handleCartClick}
     >
       <svg
         xmlns="http://www.w3.org/2000/svg"
         width="25"
         height="25"
-        fill="currentColor"
+        fill='currentcolor'
         className="bi bi-cart4"
         viewBox="0 0 16 16"
       >
