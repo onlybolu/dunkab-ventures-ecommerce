@@ -4,7 +4,8 @@ import { useCart } from "../context/cartContext";
 
 const Profile = ({ hidden, md }) => {
   const router = useRouter();
-  const { cartItems } = useCart(); // fixed: use cartItems directly
+  const { cartItems } = useCart(); 
+
 
   // Total price
   const total = cartItems.length > 0
