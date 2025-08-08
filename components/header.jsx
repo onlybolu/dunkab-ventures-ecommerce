@@ -10,6 +10,31 @@ import Image from "next/image";
 const Header = () => {
   const pathname = usePathname();
   const [isMenuOpen, setIsMenuOpen] = useState(false); // State to toggle the mobile menu
+  const [user, setUser] = useState();
+
+  useEffect(() => {
+    // Check if localStorage has 'user' and it's valid JSON
+    const storedUser = localStorage.getItem("user");
+
+    if (storedUser) {
+      try {
+        const parsedUser = (storedUser);
+
+        if (parsedUser && typeof parsedUser === "object") {
+          setUser(parsedUser);
+        }
+      } catch (err) {
+        console.warn("Invalid JSON in localStorage for 'user':", storedUser);
+        localStorage.removeItem("user"); // Cleanup corrupted value
+      }
+    }
+  }, []);
+  const handleLogout = () => {
+    localStorage.removeItem("user");         // Clear user
+    sessionStorage.removeItem("currentPath"); // Optional: Clear path
+    window.location.href = "/";             // Redirect to home or login
+  };
+  
 
   // Save the current path to session storage
   useEffect(() => {
@@ -65,6 +90,15 @@ const Header = () => {
           <Profile hidden={false} md={true} />
         </div>
         {/* Profile Icon */}
+        {user?.email && (
+  <button
+    onClick={handleLogout}
+    className="text-sm text-gray-600 hover:text-red-600 font-medium"
+  >
+    {user?.email}
+  </button>
+)}
+
         <Profile hidden={true} md={false}/>
        
       </div>
