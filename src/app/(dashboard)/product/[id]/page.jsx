@@ -27,7 +27,7 @@ export default function ProductPage() {
     try {
       // Client side update
       addToCart({ ...product, quantity: count });
-      // toast.success("Product added to cart!");
+      toast.success("Product added to cart!");
 
       // Get user session (or replace with your own userId logic)
       const res = await fetch("/api/auth/session");
