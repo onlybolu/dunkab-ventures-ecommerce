@@ -102,7 +102,7 @@ const Header = () => {
           <Profile hidden={false} md={true} />
         </div>
         {/* Profile Icon */}
-        {user.email && (
+        {user?.email && (
   <button
     onClick={handleLogout}
     className="text-sm text-gray-600 hover:text-red-600 font-medium"
