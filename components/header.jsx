@@ -26,6 +26,11 @@ const Header = () => {
   useEffect(() => {
     // Check if localStorage has 'user' and it's valid JSON
     const storedUser = localStorage.getItem("user");
+    const users = storedUser && storedUser !== "undefined" ? JSON.parse(storedUser) : null;
+
+    if (users) {
+      setUser(users);
+    }
 
     if (storedUser) {
       try {

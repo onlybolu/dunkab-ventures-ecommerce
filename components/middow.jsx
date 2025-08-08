@@ -21,13 +21,13 @@
             </svg>
 
             <a
-              href="tel:+23408037466334"
+              href="tel:+2348037466334"
               className="underline-0 hover:underline"
             >
               call us: 08037466334 {","}
             </a>
             <a
-              href="tel:+23408028414639"
+              href="tel:+2348028414639"
               className="underline-0 hover:underline"
             >
               08028414639
