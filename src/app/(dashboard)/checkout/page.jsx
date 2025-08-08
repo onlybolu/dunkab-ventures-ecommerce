@@ -8,6 +8,7 @@ import { useState } from "react";
 export default function CheckoutPage() {
   const { cartItems, removeFromCart } = useCart();
   const router = useRouter();
+  const [loading, setLoading]= useState(false)
 
   const parsePrice = (priceStr) => parseFloat(priceStr.replace(/,/g, ""));
   const subtotal = cartItems.reduce((sum, item) => {
@@ -33,18 +34,52 @@ export default function CheckoutPage() {
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
-  const handleCheckout = () => {
+  const handleCheckout = async () => {
     if (cartItems.length === 0) return alert("Cart is empty");
-
+    
     if (method === "delivery") {
       const missing = Object.entries(formData).filter(([_, val]) => val.trim() === "");
       if (missing.length > 0) return alert("Please fill in all delivery details");
       localStorage.setItem("deliveryInfo", JSON.stringify(formData));
     }
-
+  
     localStorage.setItem("orderMethod", method);
-    router.push("/payment");
+  
+    const totalAmount = method === "delivery" ? total : subtotal;
+  
+    try {
+      setLoading(true)
+      const res = await fetch("/api/payment", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          amount: totalAmount.toFixed(2),
+          name: formData.name || "Anonymous",
+          email: formData.email || "anonymous@example.com",
+          phone: formData.phone || "08000000000",
+        }),
+      });
+  
+      const data = await res.json();
+  
+      if (data.link) {
+        window.location.href = data.link; // Redirect to Flutterwave hosted page
+        setLoading(false)
+      } else {
+        alert("Payment could not be initiated.");
+        // console.error("Flutterwave error:", data);
+        setLoading(false)
+      }
+    } catch (error) {
+      alert("Something went wrong. Try again.");
+      console.error("Checkout error:", error);
+      setLoading(false)
+    }
   };
+  
+  
 
   return (
     <div className="mx-auto p-4 max-w-5xl">
@@ -142,10 +177,11 @@ export default function CheckoutPage() {
             </div>
 
             <button
-              className="bg-black text-white px-6 py-3 rounded w-full hover:bg-gray-800"
+              className="bg-black text-white px-6 py-3 rounded w-full cursor-pointer hover:bg-gray-800"
               onClick={handleCheckout}
+              disabled={loading}
             >
-              Continue with Payment
+              {loading ? "please wait........": "Continue with Payment"}
             </button>
           </div>
 
