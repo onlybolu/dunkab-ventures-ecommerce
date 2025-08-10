@@ -49,7 +49,7 @@ export default function ContactPage() {
         value={formData.name}
         onChange={handleChange}
         placeholder="Your Name"
-        className="w-full border p-2 rounded"
+        className="w-full border border-gray-300 p-2 rounded"
       />
       <input
         type="email"
@@ -58,7 +58,7 @@ export default function ContactPage() {
         value={formData.email}
         onChange={handleChange}
         placeholder="Your Email"
-        className="w-full border p-2 rounded"
+        className="w-full border border-gray-300 p-2 rounded"
       />
       <input
         type="text"
@@ -67,7 +67,7 @@ export default function ContactPage() {
         value={formData.subject}
         onChange={handleChange}
         placeholder="Subject"
-        className="w-full border p-2 rounded"
+        className="w-full border border-gray-300 p-2 rounded"
       />
       <textarea
         name="message"
@@ -76,7 +76,7 @@ export default function ContactPage() {
         value={formData.message}
         onChange={handleChange}
         placeholder="Your Message"
-        className="w-full border p-2 rounded"
+        className="w-full border border-gray-300 p-2 rounded"
       ></textarea>
       <button
         type="submit"
@@ -92,8 +92,9 @@ export default function ContactPage() {
 
   const AddressSection = (
     <div className="bg-gray-100 p-6 rounded-lg shadow-md space-y-4">
-      <h3 className="text-xl font-bold mb-2 text-blue-700">Dunkab Ventures</h3>
-      <p>Block 'N' shop 57 & 58 also known as pepsi building orodomu, Ebute ero market, lagos island.</p>
+      <Logo fontSize={"text-lg"} width={"w-15"}/>
+      {/* <h3 className="text-xl font-bold mb-2 ">Dunkab Ventures</h3> */}
+      <p className="font-extralight text-sm">Block 'N' shop 57 & 58 also known as pepsi building orodomu, Ebute ero market, lagos island.</p>
       <p>
         📞{" "}
         <a href="tel:+2348037466334" className="text-blue-600 hover:underline">

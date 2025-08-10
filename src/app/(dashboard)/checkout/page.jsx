@@ -6,10 +6,10 @@ import { useRouter } from "next/navigation";
 import { useState, useEffect } from "react";
 
 export default function CheckoutPage() {
-  const { cartItems, removeFromCart, clearCart } = useCart();
+  const { cartItems, clearCart } = useCart();
   const router = useRouter();
   const [loading, setLoading] = useState(false);
-
+  const [user, setUser] = useState(null);
   const [method, setMethod] = useState("delivery");
   const [formData, setFormData] = useState({
     name: "",
@@ -18,11 +18,28 @@ export default function CheckoutPage() {
     address: "",
   });
 
+  // Load user from localStorage
+  useEffect(() => {
+    const storedUser = localStorage.getItem("user");
+    const parsedUser =
+      storedUser && storedUser !== "undefined" ? JSON.parse(storedUser) : null;
+
+    if (parsedUser) {
+      setUser(parsedUser);
+      setFormData((prev) => ({
+        ...prev,
+        name: parsedUser.name || "",
+        email: parsedUser.email || "",
+        phone: parsedUser.phone || "",
+      }));
+    }
+  }, []);
+
   const parsePrice = (priceStr) => parseFloat(priceStr.replace(/,/g, ""));
-  const subtotal = cartItems.reduce((sum, item) => {
-    const price = parsePrice(item.price);
-    return sum + price * item.quantity;
-  }, 0);
+  const subtotal = cartItems.reduce(
+    (sum, item) => sum + parsePrice(item.price) * item.quantity,
+    0
+  );
   const shippingFee = 2000;
   const total = subtotal + shippingFee;
 
@@ -33,39 +50,70 @@ export default function CheckoutPage() {
 
   const handleCheckout = async () => {
     if (cartItems.length === 0) return alert("Cart is empty");
-
+  
     if (method === "delivery") {
-      const missing = Object.entries(formData).filter(([_, val]) => val.trim() === "");
-      if (missing.length > 0) return alert("Please fill in all delivery details");
+      const missing = Object.entries(formData).filter(
+        ([_, val]) => val.trim() === ""
+      );
+      if (missing.length > 0)
+        return alert("Please fill in all delivery details");
       localStorage.setItem("deliveryInfo", JSON.stringify(formData));
     }
-
+  
     localStorage.setItem("orderMethod", method);
-
     const totalAmount = method === "delivery" ? total : subtotal;
-
+  
     try {
       setLoading(true);
+  
+      // Save order first
+      const saveOrderRes = await fetch("/api/order", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          userId: user?._id || null,
+          items: cartItems,
+          method,
+          deliveryInfo: formData,
+          totalAmount,
+          paymentStatus: "pending",
+          orderStatus: "pending" // explicit initial state
+        }),
+      });
+  
+      const saveOrderData = await saveOrderRes.json();
+      if (!saveOrderData.success) {
+        alert("Could not save order. Please try again.");
+        return;
+      }
+  
+      // Continue to payment
       const res = await fetch("/api/payment", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           amount: totalAmount.toFixed(2),
-          name: formData.name || "Anonymous",
-          email: formData.email || "anonymous@example.com",
+          name: formData.name || user?.name,
+          email: formData.email || user?.email || "anonymous@mail.com",
           phone: formData.phone || "08000000000",
         }),
       });
-
+  
       const data = await res.json();
-
       if (data.link) {
         localStorage.setItem("awaitingPayment", "true");
         window.location.href = data.link;
       } else {
-        alert("Payment could not be initiated.");
+        // If payment init fails → update order to failed/cancelled
+        await fetch(`/api/order/${saveOrderData.order._id}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            paymentStatus: "failed",
+            orderStatus: "cancelled"
+          }),
+        });
+        alert("Payment could not be initiated. Order cancelled.");
       }
     } catch (error) {
       alert("Something went wrong. Try again.");
@@ -74,183 +122,141 @@ export default function CheckoutPage() {
       setLoading(false);
     }
   };
+  
 
-  // ✅ Check for payment success after redirect
+  // Payment success handling
   useEffect(() => {
     if (typeof window !== "undefined") {
       const url = new URL(window.location.href);
       const status = url.searchParams.get("status");
 
       if (status === "successful" && localStorage.getItem("awaitingPayment")) {
-        clearCart(); // Clear the cart context
+        clearCart();
         localStorage.removeItem("awaitingPayment");
         localStorage.removeItem("cartItems");
-        router.replace("/checkout"); // avoid refiring useEffect
+        router.replace("/checkout");
       }
     }
   }, [clearCart, router]);
 
   return (
-    <div className="mx-auto p-4 max-w-5xl">
-      <h1 className="text-3xl font-bold mb-6">Checkout</h1>
+    <div className="p-4 sm:p-6 lg:p-10 max-w-6xl mx-auto">
+      <h1 className="text-2xl font-bold mb-6">Checkout</h1>
 
-      {/* Delivery method switch */}
-      <div className="mb-6 flex gap-4">
-        <label className="flex items-center gap-2">
-          <input
-            type="radio"
-            name="method"
-            value="delivery"
-            checked={method === "delivery"}
-            onChange={() => setMethod("delivery")}
-          />
-          Delivery
-        </label>
-        <label className="flex items-center gap-2">
-          <input
-            type="radio"
-            name="method"
-            value="pickup"
-            checked={method === "pickup"}
-            onChange={() => setMethod("pickup")}
-          />
-          Pickup
-        </label>
-      </div>
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        {/* Left: Form */}
+        <div className="lg:col-span-2 space-y-6">
+          {/* Method Selection */}
+          <div className="bg-white p-4 rounded-lg shadow-sm">
+            <label className="block font-semibold mb-2">Order Method</label>
+            <select
+              value={method}
+              onChange={(e) => setMethod(e.target.value)}
+              className="border p-3 rounded w-full outline-none"
+            >
+              <option value="delivery">Delivery (₦2,000 shipping)</option>
+              <option value="pickup">Pickup (Free)</option>
+            </select>
+          </div>
 
-      {cartItems.length === 0 ? (
-        <p className="text-gray-500">Your cart is empty.</p>
-      ) : (
-        <div className="flex flex-col md:flex-row gap-6">
-          {/* Cart Summary */}
-          <div className="md:w-1/2 space-y-6">
-            <h2 className="text-xl font-semibold mb-4">Order Summary</h2>
-            <div className="space-y-4">
-              {cartItems.map((item) => {
-                const price = parsePrice(item.price);
-                const totalPrice = price * item.quantity;
+          {/* Delivery Info */}
+          {method === "delivery" && (
+            <div className="bg-white p-4 rounded-lg shadow-sm">
+              <h2 className="font-semibold mb-4">Delivery Information</h2>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {["name", "email", "phone", "address"].map((field) => (
+                  <input
+                    key={field}
+                    name={field}
+                    placeholder={field.charAt(0).toUpperCase() + field.slice(1)}
+                    value={formData[field]}
+                    onChange={handleChange}
+                    className="border p-3 rounded w-full outline-none col-span-1 sm:col-span-2"
+                  />
+                ))}
+              </div>
+            </div>
+          )}
 
-                return (
-                  <div key={item._id} className="flex items-center gap-4 border-b pb-4">
+          {/* Pickup Info */}
+          {method === "pickup" && (
+            <div className="bg-white p-4 rounded-lg shadow-sm">
+              <h2 className="font-semibold mb-4">Pickup Location</h2>
+              <p className="text-gray-700">
+                📍 123 Main Street, Lagos, Nigeria <br />
+                🕒 Monday – Saturday, 9:00 AM – 6:00 PM
+              </p>
+            </div>
+          )}
+        </div>
+
+        {/* Right: Cart Summary */}
+        <div>
+          <div className="bg-white p-4 rounded-lg shadow-sm">
+            <h2 className="font-semibold mb-4">Your Order</h2>
+            <div className="divide-y">
+              {cartItems.map((item) => (
+                <div
+                  key={item.id}
+                  className="flex items-center justify-between py-3"
+                >
+                  <div className="flex items-center gap-3">
                     <Image
                       src={item.image}
-                      alt={item.title}
-                      width={80}
-                      height={80}
-                      className="rounded"
+                      alt={item.name}
+                      width={50}
+                      height={50}
+                      className="rounded border"
                     />
-                    <div className="flex-1">
-                      <h2 className="text-lg font-semibold">{item.title}</h2>
+                    <div>
+                      <p className="font-medium">{item.name}</p>
                       <p className="text-sm text-gray-500">
-                        ₦{price.toLocaleString()} × {item.quantity}
+                        {item.quantity} × ₦{item.price}
                       </p>
                     </div>
-                    <p className="font-semibold">₦{totalPrice.toLocaleString()}</p>
-                    <button
-                      className="text-red-500 hover:underline text-sm"
-                      onClick={() => removeFromCart(item._id)}
-                    >
-                      <svg
-                        xmlns="http://www.w3.org/2000/svg"
-                        width="22"
-                        height="22"
-                        fill="red"
-                        className="bi bi-trash3"
-                        viewBox="0 0 16 16"
-                      >
-                        <path d="M6.5 1h3a.5.5 0 0 1 .5.5v1H6v-1a.5.5 0 0 1 .5-.5M11 2.5v-1A1.5 1.5 0 0 0 9.5 0h-3A1.5 1.5 0 0 0 5 1.5v1H1.5a.5.5 0 0 0 0 1h.538l.853 10.66A2 2 0 0 0 4.885 16h6.23a2 2 0 0 0 1.994-1.84l.853-10.66h.538a.5.5 0 0 0 0-1zm1.958 1-.846 10.58a1 1 0 0 1-.997.92h-6.23a1 1 0 0 1-.997-.92L3.042 3.5zm-7.487 1a.5.5 0 0 1 .528.47l.5 8.5a.5.5 0 0 1-.998.06L5 5.03a.5.5 0 0 1 .47-.53Zm5.058 0a.5.5 0 0 1 .47.53l-.5 8.5a.5.5 0 1 1-.998-.06l.5-8.5a.5.5 0 0 1 .528-.47M8 4.5a.5.5 0 0 1 .5.5v8.5a.5.5 0 0 1-1 0V5a.5.5 0 0 1 .5-.5" />
-                      </svg>
-                    </button>
                   </div>
-                );
-              })}
+                  <p className="font-semibold">
+                    ₦
+                    {(
+                      parsePrice(item.price) * item.quantity
+                    ).toLocaleString()}
+                  </p>
+                </div>
+              ))}
             </div>
 
-            <div className="border-t pt-4 space-y-2">
-              <div className="flex justify-between text-sm">
+            {/* Summary */}
+            <div className="mt-4 border-t pt-4 space-y-2">
+              <p className="flex justify-between">
                 <span>Subtotal</span>
                 <span>₦{subtotal.toLocaleString()}</span>
-              </div>
+              </p>
               {method === "delivery" && (
-                <div className="flex justify-between text-sm">
+                <p className="flex justify-between">
                   <span>Shipping</span>
                   <span>₦{shippingFee.toLocaleString()}</span>
-                </div>
+                </p>
               )}
-              <div className="flex justify-between font-bold text-lg">
+              <p className="flex justify-between font-bold text-lg">
                 <span>Total</span>
                 <span>
-                  ₦{(method === "delivery" ? total : subtotal).toLocaleString()}
+                  ₦
+                  {(method === "delivery" ? total : subtotal).toLocaleString()}
                 </span>
-              </div>
+              </p>
             </div>
 
+            {/* Checkout Button */}
             <button
-              className="bg-black text-white px-6 py-3 rounded w-full cursor-pointer hover:bg-gray-800"
               onClick={handleCheckout}
               disabled={loading}
+              className="mt-6 w-full bg-blue-500 hover:bg-blue-600 text-white py-3 rounded-lg font-semibold transition disabled:opacity-50"
             >
-              {loading ? "Please wait..." : "Continue with Payment"}
+              {loading ? "Processing..." : "Proceed to Payment"}
             </button>
           </div>
-
-          {/* Delivery or Pickup Details */}
-          <div className="md:w-1/2 space-y-6">
-            {method === "delivery" ? (
-              <div>
-                <h2 className="text-xl font-semibold mb-4">Delivery Information</h2>
-                <div className="grid grid-cols-1 gap-4">
-                  <input
-                    type="text"
-                    name="name"
-                    placeholder="Full Name"
-                    value={formData.name}
-                    onChange={handleChange}
-                    className="border p-2 rounded w-full"
-                  />
-                  <input
-                    type="email"
-                    name="email"
-                    placeholder="Email Address"
-                    value={formData.email}
-                    onChange={handleChange}
-                    className="border p-2 rounded w-full"
-                  />
-                  <input
-                    type="tel"
-                    name="phone"
-                    placeholder="Phone Number"
-                    value={formData.phone}
-                    onChange={handleChange}
-                    className="border p-2 rounded w-full"
-                  />
-                  <input
-                    type="text"
-                    name="address"
-                    placeholder="Delivery Address"
-                    value={formData.address}
-                    onChange={handleChange}
-                    className="border p-2 rounded w-full"
-                  />
-                </div>
-              </div>
-            ) : (
-              <div>
-                <h2 className="text-xl font-semibold mb-4">Pickup Location</h2>
-                <div className="bg-gray-100 p-4 rounded">
-                  <p className="font-medium">Company Address:</p>
-                  <p className="text-gray-700">
-                    block N shop 57 & 58 also known as Pepsi building gorodomu, ebute ero market, lagos island
-                  </p>
-                  <p className="text-gray-500 text-sm mt-2">
-                    Please arrive within 48 hours of placing your order. Pickup hours: 9AM - 7PM.
-                  </p>
-                </div>
-              </div>
-            )}
-          </div>
         </div>
-      )}
+      </div>
     </div>
   );
 }
