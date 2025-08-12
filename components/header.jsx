@@ -211,7 +211,7 @@ const Header = () => {
               className="w-full h-40 object-cover rounded-lg shadow-md mt-4"
             ></video>
           </div>
-          <form onSubmit={handleSearch} className="pt-12 px-4">
+          <form onSubmit={handleSearch} className="pt-6 px-4">
             <input
               type="text"
               placeholder="Search products..."
@@ -282,7 +282,7 @@ const Header = () => {
                 </svg>
               </div>
             </div>
-            <div className="px-4 pt-10 bg-white rounded-md flex flex-col gap-7">
+            <div className="px-4 bg-white rounded-md flex flex-col gap-7">
               <div>
                 <Link href="/productcart" className="flex items-center justify-between border-b pb-2 cursor-pointer border-gray-300" onClick={() => setIsMenuOpen(false)}>
                   <div className="flex items-center gap-2 text-gray-700">
