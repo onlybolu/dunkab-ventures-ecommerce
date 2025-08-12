@@ -9,7 +9,7 @@ export default function SignupForm() {
   const [name, setName] = useState("");
   const [password, setPassword] = useState("");
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState(""); // <-- Add this line
+  const [error, setError] = useState("");
   const router = useRouter();
 
   const handleSignup = async (e) => {
@@ -23,19 +23,26 @@ export default function SignupForm() {
         body: JSON.stringify({ email, password, name }),
       });
 
-      const data = await res.json(); // <-- this was missing too
+      const data = await res.json();
 
       if (!res.ok) {
-        setError(data?.message);
-        toast.error(data?.message || "Signup failed");
+        setError(data?.error || "Signup failed");
+        toast.error(data?.error || "Signup failed");
+        setLoading(false);
         return;
       }
 
-      localStorage.setItem("user", JSON.stringify(data.user));
+      const user = {
+        id: data.id,
+        name: data.name,
+        email: data.email,
+      };
+      localStorage.setItem("user", JSON.stringify(user));
       router.push("/productcart");
     } catch (err) {
-        toast.error("Something went wrong. Please try again.");
-      setError(err.message); // use setError here too
+      toast.error("Something went wrong. Please try again.");
+      setError("Something went wrong. Please try again.");
+      setLoading(false);
     } finally {
       setLoading(false);
     }
@@ -43,7 +50,7 @@ export default function SignupForm() {
 
   return (
     <form onSubmit={handleSignup} className="space-y-4">
-        <ToastContainer />
+      <ToastContainer />
       {error && (
         <p className="text-red-500 text-sm bg-red-100 px-3 py-2 rounded">
           {error}

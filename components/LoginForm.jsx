@@ -15,6 +15,12 @@ export default function LoginForm() {
     setLoading(true);
     setError("");
 
+    if (!email || !password) {
+      setError("Please fill in all fields");
+      setLoading(false);
+      return;
+    }
+
     try {
       const res = await fetch("/api/auth/login", {
         method: "POST",
@@ -22,18 +28,24 @@ export default function LoginForm() {
         body: JSON.stringify({ email, password }),
       });
 
-      const data = await res.json();
-
       if (!res.ok) {
+        const data = await res.json();
         setError(data?.message || "Invalid credentials");
+        setLoading(false);
         return;
       }
-      
-        
-      localStorage.setItem("user", JSON.stringify(data.user)); 
-      
+
+      const data = await res.json();
+      const user = {
+        id: data.id,
+        name: data.name,
+        email: data.email,
+        token: data.token,
+      };
+      localStorage.setItem("user", JSON.stringify(user));
       router.push("/productcart");
-        }catch (err) {
+    } catch (err) {
+      console.error(err);
       setError("Something went wrong. Please try again.");
     } finally {
       setLoading(false);

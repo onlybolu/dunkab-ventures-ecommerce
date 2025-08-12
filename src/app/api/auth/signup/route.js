@@ -48,6 +48,8 @@ export async function POST(req) {
 
   return NextResponse.json({
     message: "User registered successfully",
-    userId: user._id,
+    id: user._id,
+    name: user.name,
+    email: user.email,
   });
 }

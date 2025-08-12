@@ -1,29 +1,38 @@
-// File: /app/api/cart/route.js
-import Connectdb from "../../../lib/connectdb";
-import Cart from "../../../models/cart"; // define schema if missing
-import { NextResponse } from "next/server";
+// pages/api/cart.js
+import { NextResponse } from 'next/server';
+import User from '../../models/user';
+import Connectdb from '../../lib/connectdb';
 
 export async function POST(req) {
-  await Connectdb();
   try {
-    const { userId, productId, quantity } = await req.json();
-
-    if (!userId || !productId || !quantity) {
-      return NextResponse.json({ error: "Missing fields" }, { status: 400 });
+    await Connectdb();
+    const product = await req.json();
+    const user = await User.findByIdAndUpdate(req.user.id, {
+      $push: { cart: { productId: product._id, quantity: product.quantity } },
+    });
+    if (!user) {
+      return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
+    return NextResponse.json({ message: 'Product added to cart' });
+  } catch (error) {
+    console.error(error);
+    return NextResponse.json({ error: 'Failed to add product to cart' }, { status: 500 });
+  }
+}
 
-    // Upsert: update if already exists
-    const existing = await Cart.findOne({ userId, productId });
-    if (existing) {
-      existing.quantity += quantity;
-      await existing.save();
-    } else {
-      await Cart.create({ userId, productId, quantity });
+export async function DELETE(req) {
+  try {
+    await Connectdb();
+    const { productId } = await req.json();
+    const user = await User.findByIdAndUpdate(req.user.id, {
+      $pull: { cart: { productId: productId } },
+    });
+    if (!user) {
+      return NextResponse.json({ error: 'User not found' }, { status: 404 });
     }
-
-    return NextResponse.json({ message: "Cart updated successfully" });
-  } catch (err) {
-    console.error("Cart error:", err);
-    return NextResponse.json({ error: "Server error" }, { status: 500 });
+    return NextResponse.json({ message: 'Product removed from cart' });
+  } catch (error) {
+    console.error(error);
+    return NextResponse.json({ error: 'Failed to remove product from cart' }, { status: 500 });
   }
 }
