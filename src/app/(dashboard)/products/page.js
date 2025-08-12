@@ -1,7 +1,6 @@
-"use client";
-
+"use client"
 import { useEffect, useState } from "react";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import Link from "next/link";
 import ProductCard from "../../../../components/productcard";
 import Image from "next/image";
@@ -11,7 +10,6 @@ const PRODUCTS_PER_PAGE = 12;
 
 export default function HomePage() {
   const [products, setProducts] = useState([]);
-  const [query, setQuery] = useState("");
   const [brand, setBrand] = useState("all");
   const [minPrice, setMinPrice] = useState("");
   const [maxPrice, setMaxPrice] = useState("");
@@ -22,14 +20,20 @@ export default function HomePage() {
   const [showAuthModal, setShowAuthModal] = useState(false);
 
   const pathname = usePathname();
+  const router = useRouter();
+  const searchParams = useSearchParams();
+  const query = searchParams.get("q") || "";
   const [previousPath, setPreviousPath] = useState(null);
+  
 
+  // Save previous path for breadcrumb
   useEffect(() => {
     const lastPath = sessionStorage.getItem("currentPath");
     if (lastPath) setPreviousPath(lastPath);
     sessionStorage.setItem("lastPath", pathname);
   }, [pathname]);
 
+  // Fetch products
   const fetchProducts = async () => {
     try {
       setLoading(true);
@@ -69,14 +73,25 @@ export default function HomePage() {
     }
   };
 
-  // Live search & filter with debounce
+  // Refetch on filter/search/page change
   useEffect(() => {
-    const timeout = setTimeout(() => {
+    const delay = setTimeout(() => {
       fetchProducts();
-    }, 500); // 500ms delay after typing
+    }, 400); // debounce typing
 
-    return () => clearTimeout(timeout);
+    return () => clearTimeout(delay);
   }, [query, brand, minPrice, maxPrice, page]);
+
+  const handleSearchChange = (value) => {
+    const params = new URLSearchParams(searchParams.toString());
+    if (value) {
+      params.set("q", value);
+    } else {
+      params.delete("q");
+    }
+    params.set("page", "1"); // reset to first page
+    router.push(`${pathname}?${params.toString()}`);
+  };
 
   const formatPathname = (path) => {
     if (path === "/") return "Home";
@@ -88,11 +103,12 @@ export default function HomePage() {
   };
 
   return (
-    <main className="">
+    <main>
       {showAuthModal && (
         <AuthModal show={showAuthModal} onClose={() => setShowAuthModal(false)} />
       )}
 
+      {/* Header Image */}
       <div className="w-full relative">
         <Image
           src={"/productbg.png"}
@@ -105,14 +121,10 @@ export default function HomePage() {
           <div className="space-x-2 flex items-center">
             <Logo width={"w-15"} height={"h-20"} hidden={"hidden"} fontSize={"text-2xl"} />
             {previousPath && (
-              <>
-                <Link href={previousPath} className="hover:underline text-3xl font-semibold text-gray-700">
-                  {formatPathname(previousPath)}
-                </Link>
-                {/* <span>{">"}</span> */}
-              </>
+              <Link href={previousPath} className="hover:underline text-3xl font-semibold text-gray-700">
+                {formatPathname(previousPath)}
+              </Link>
             )}
-            {/* <span>{formatPathname(pathname)}</span> */}
           </div>
           <div className="text-gray-600 flex gap-2">
             <p className="font-medium">Home</p>
@@ -122,17 +134,14 @@ export default function HomePage() {
         </div>
       </div>
 
+      {/* Search Bar */}
       <div className="p-6 max-w-7xl mx-auto">
-        {/* Removed <form> and added direct input */}
         <input
-          type="text"
+          type="search"
           placeholder="Search products..."
           className="border border-gray-300 px-4 py-4 outline-0 rounded-xl w-full shadow-lg mb-10"
           value={query}
-          onChange={(e) => {
-            setQuery(e.target.value);
-            setPage(1); // Reset to page 1 on search change
-          }}
+          onChange={(e) => handleSearchChange(e.target.value)}
         />
 
         {error && (
@@ -164,11 +173,9 @@ export default function HomePage() {
               >
                 Prev
               </button>
-
               <span className="font-medium text-gray-700">
                 Page {page} of {totalPages}
               </span>
-
               <button
                 onClick={() => setPage((prev) => Math.min(prev + 1, totalPages))}
                 disabled={page === totalPages}
