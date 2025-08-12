@@ -208,7 +208,7 @@ const Header = () => {
               muted
               autoPlay
               playsInline
-              className="w-full h-40 object-cover rounded-lg shadow-md mt-4"
+              className="w-full h-40 object-cover rounded-lg shadow-md "
             ></video>
           </div>
           <form onSubmit={handleSearch} className="pt-6 px-4">
