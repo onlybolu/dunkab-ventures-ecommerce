@@ -11,6 +11,10 @@ const userSchema = new mongoose.Schema({
       quantity: { type: Number, default: 1 },
     },
   ],
+  otp: {
+    code: Number,
+    expiresAt: Date
+  }
 });
 
 export default mongoose.models.User || mongoose.model("User", userSchema);

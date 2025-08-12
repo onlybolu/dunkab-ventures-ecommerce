@@ -167,17 +167,35 @@ const Header = () => {
         <div className={`fixed top-0 left-0 h-full w-full bg-white shadow-2xl transform transition-transform duration-300 ${isMenuOpen ? "translate-x-0" : "translate-x-full"}`}>
           
           {/* Menu header */}
-          <div className="flex shadow-2xl items-center justify-between px-3 py-6">
+          <div className="flex shadow-2xl w-full items-center justify-between px-3 py-4">
             {showUserDetails || showCategories ? (
               <button onClick={handleBackToMenu} className="flex items-center gap-1 text-gray-700 hover:text-red-500">
                 ← Back
               </button>
             ) : (
-              <Logo width={"w-15"} height={"h-20"} />
+              <div className="flex w-full items-center justify-between px-3">
+                      <Logo width={"w-15"} height={"h-20"} />
+                      <button
+                        onClick={() => setIsMenuOpen(false)}
+                        className="text-gray-700 font-bold hover:text-red-600"
+                      >
+                        <svg
+                          xmlns="http://www.w3.org/2000/svg"
+                          width="30"
+                          height="30"
+                          fill="currentColor"
+                          className="bi bi-x"
+                          viewBox="0 0 16 16"
+                        >
+                          <path
+                            fillRule="evenodd"
+                            d="M4.646 4.646a.5.5 0 0 1 .708 0L8 7.293l2.646-2.647a.5.5 0 0 1 .708.708L8.707 8l2.647 2.646a.5.5 0 0 1-.708.708L8 8.707l-2.646 2.647a.5.5 0 0 1-.708-.708L7.293 8 4.646 5.354a.5.5 0 0 1 0-.708z"
+                          />
+                        </svg>
+                      </button>
+                    </div>
             )}
-            <button onClick={() => setIsMenuOpen(false)}>
-              ✕
-            </button>
+            
           </div>
 
             {/* video */}
@@ -235,7 +253,7 @@ const Header = () => {
                 ))}
               </ul>
             ) : (
-              <div className="bg-white rounded-md py-3">
+              <div className="bg-white rounded-md h-[60vh] overflow-y-scroll py-3">
                 <ul className="flex flex-col gap-4 items-start">
                   {Navbar.map((item) => (
                     <li key={item.id} className="w-full border-b border-gray-300">
