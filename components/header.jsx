@@ -220,7 +220,7 @@ const Header = () => {
               onChange={(e) => setSearchTerm(e.target.value)}
             />
           </form>
-          <div className="flex flex-col gap-4 pt-3 h-[40vh] overflow-y-scroll px-4">
+          <div className="flex flex-col gap-4 pt-3 h-[50vh] overflow-y-scroll px-4">
             <div className="bg-white  rounded-md py-3 ">
               <ul className="flex flex-col gap-4 items-start  ">
                 {Navbar.map((item) => (
