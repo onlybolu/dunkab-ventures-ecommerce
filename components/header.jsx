@@ -247,16 +247,16 @@ const Header = () => {
                 ))}
               </ul>
               {showCategories && (
-                <ul className="flex flex-col gap-4 items-start">
-                  {categories.map((category) => (
-                    <li key={category.id} className="w-full border-b border-gray-300">
-                      <Link href={`/products?category=${category.category}`} className="flex gap-2 w-full px-4 py-2 text-gray-700 hover:text-red-600">
-                        {category.category}
-                      </Link>
-                    </li>
-                  ))}
-                </ul>
-              )}
+  <ul className="flex flex-col gap-4 items-start">
+    {categories.map((category, index) => (
+      <li key={index} className="w-full border-b border-gray-300">
+        <Link href={`/products?category=${category}`} className="flex gap-2 w-full px-4 py-2 text-gray-700 hover:text-red-600">
+          {category}
+        </Link>
+      </li>
+    ))}
+  </ul>
+)}
               {backButton && (
                 <button onClick={() => { setShowCategories(false); setBackButton(false); }} className="text-sm text-gray-600 hover:text-red-600 font-medium">
                   Back

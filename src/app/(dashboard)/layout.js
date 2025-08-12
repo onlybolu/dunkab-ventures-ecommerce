@@ -1,4 +1,5 @@
 "use client"
+import { Suspense } from "react";
 import Footer from "../../../components/footer";
 import Header from "../../../components/header";
 import Middow from "../../../components/middow";
@@ -17,7 +18,10 @@ export default function RootLayout({ children }) {
         </div>
         <FavoriteProvider>
         <Script src="https://checkout.flutterwave.com/v3.js" strategy="beforeInteractive" />
+        <Suspense fallback={<div className="w-full h-screen">Loading.......</div>}>
+
         {children}
+        </Suspense>
         </FavoriteProvider>
         <div className="flex flex-col h-full justify-end">
         <Footer />
