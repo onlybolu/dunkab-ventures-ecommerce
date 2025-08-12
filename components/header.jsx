@@ -171,12 +171,12 @@ const Header = () => {
 
       {/* Mobile Menu */}
       <div
-        className={`absolute z-1000 top-0 left-0 h-full w-full bg-black/50  transform transition-transform duration-300 ${
+        className={`fixed top-0 left-0 h-full w-full bg-black/50  transform transition-transform duration-300 ${
           isMenuOpen ? "translate-x-0" : "translate-x-full"
         }`}
       >
         <div
-          className={`absolute z-1000 top-0 left-0 h-full w-84 bg-white shadow-2xl transform transition-transform duration-300 ${
+          className={`fixed top-0 left-0 h-full w-full bg-white shadow-2xl transform transition-transform duration-300 ${
             isMenuOpen ? "translate-x-0" : "translate-x-full"
           }`}
         >
@@ -220,7 +220,7 @@ const Header = () => {
               onChange={(e) => setSearchTerm(e.target.value)}
             />
           </form>
-          <div className="flex flex-col gap-4  h-[50vh] overflow-y-scroll mt-5 px-4">
+          <div className="flex flex-col gap-4  h-[50vh] pb-9 overflow-y-scroll mt-5 px-4">
             <div className="bg-white  rounded-md py-3 ">
               <ul className="flex flex-col gap-4 items-start  ">
                 {Navbar.map((item) => (

@@ -1,15 +1,11 @@
 import Product from '../../../../models/product';
+import { NextResponse } from 'next/server';
 
-export default async function handler(req, res) {
-  if (req.method === 'GET') {
-    try {
-      const categories = await Product.distinct('category');
-      res.status(200).json(categories);
-    } catch (error) {
-      console.error(error);
-      res.status(500).json({ message: 'Error fetching categories' });
-    }
-  } else {
-    res.status(405).json({ message: 'Method Not Allowed' });
+export async function GET() {
+  try {
+    const categories = await Product.distinct('category');
+    return NextResponse.json(categories);
+  } catch (error) {
+    return NextResponse.json({ message: 'Error fetching categories' }, { status: 500 });
   }
 }
