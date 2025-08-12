@@ -24,10 +24,21 @@ export async function POST(req) {
     );
   }
 
+  // Validate name
+  if (name.length < 2) {
+    return NextResponse.json({ error: "Name must be at least 2 characters long" }, { status: 400 });
+  }
+
   // Validate email
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   if (!emailRegex.test(email)) {
     return NextResponse.json({ error: "Invalid email format" }, { status: 400 });
+  }
+
+  // Validate password
+  const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/;
+  if (!passwordRegex.test(password)) {
+    return NextResponse.json({ error: "Password must be at least 8 characters long and contain at least one uppercase letter, one lowercase letter, one number, and one special character" }, { status: 400 });
   }
 
   const existing = await User.findOne({ email });

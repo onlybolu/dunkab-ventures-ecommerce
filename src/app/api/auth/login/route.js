@@ -4,7 +4,7 @@ import { comparePassword } from "../../../../../lib/hash";
 import { NextResponse } from "next/server";
 import jwt from 'jsonwebtoken';
 
-const SECRET_KEY = process.env.SECRET_KEY;
+const SECRET_KEY = process.env.JWT_SECRET;
 
 export async function POST(req) {
   try {
@@ -31,14 +31,19 @@ export async function POST(req) {
       return NextResponse.json({ error: "Invalid email format" }, { status: 400 });
     }
 
+    const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/;
+    if (!passwordRegex.test(password)) {
+      return NextResponse.json({ error: "Password must be at least 8 characters long and contain at least one uppercase letter, one lowercase letter, one number, and one special character" }, { status: 400 });
+    }
+
     const user = await User.findOne({ email });
     if (!user) {
-      return NextResponse.json({ error: "Invalid email or password" }, { status: 401 });
+      return NextResponse.json({ error: "Email not found" }, { status: 401 });
     }
 
     const isMatch = await comparePassword(password, user.password);
     if (!isMatch) {
-      return NextResponse.json({ error: "Invalid email or password" }, { status: 401 });
+      return NextResponse.json({ error: "Incorrect password" }, { status: 401 });
     }
 
     const token = jwt.sign({ userId: user._id }, SECRET_KEY, { expiresIn: '1h' });
