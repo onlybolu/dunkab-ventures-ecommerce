@@ -1,4 +1,3 @@
-// middleware.js
 import { NextResponse } from 'next/server';
 
 // Simple in-memory rate limit store

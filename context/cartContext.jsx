@@ -17,7 +17,7 @@ export function CartProvider({ children }) {
         const data = await cartRes.json();
         setCartItems(data.cart || []);
       } else {
-        setCartItems([]); // if no cart found
+        setCartItems([]); 
       }
     } catch (err) {
       console.error("Error fetching updated cart:", err);
@@ -25,7 +25,6 @@ export function CartProvider({ children }) {
     }
   };
 
-  // Watch for login/logout changes
   useEffect(() => {
     const checkSession = async () => {
       try {
@@ -35,27 +34,24 @@ export function CartProvider({ children }) {
         });
 
         if (!res.ok) {
-          // LOGGED OUT
           if (user !== null) {
             setUser(null);
-            setCartItems([]); // reset cart immediately
+            setCartItems([]);
           }
           return;
         }
 
         const { user: loggedInUser } = await res.json();
 
-        // If newly logged in or changed user
         if (!user || user._id !== loggedInUser._id) {
           setUser(loggedInUser);
-          await fetchCartFromDB(loggedInUser._id); // fetch their saved cart
+          await fetchCartFromDB(loggedInUser._id);
         }
       } catch (err) {
         console.error("Error checking session:", err);
       }
     };
 
-    // Run on mount + every 5s to detect changes
     checkSession();
     const interval = setInterval(checkSession, 5000);
     return () => clearInterval(interval);
@@ -74,33 +70,47 @@ export function CartProvider({ children }) {
     }
   };
 
-  const addToCart = (product) => {
+  const addToCart = (product, selectedColor) => {
     if (!user?._id) {
       alert("Please log in to add to cart");
       return;
     }
-  
+
     setCartItems((prevItems) => {
-      const existing = prevItems.find((item) => item.productId === product._id);
+      const existing = prevItems.find(
+        (item) =>
+          item.productId === product._id && item.color === selectedColor
+      );
+
       let newCart;
       if (existing) {
         newCart = prevItems.map((item) =>
-          item.productId === product._id
+          item.productId === product._id && item.color === selectedColor
             ? { ...item, quantity: item.quantity + (product.quantity || 1) }
             : item
         );
       } else {
-        newCart = [...prevItems, { productId: product._id, quantity: product.quantity || 1 }];
+        newCart = [
+          ...prevItems,
+          {
+            productId: product._id,
+            title: product.title,
+            price: product.price,
+            color: selectedColor, // store chosen color
+            quantity: product.quantity || 1,
+          },
+        ];
       }
-      saveCartToDB(newCart); // send correct format to backend
+      saveCartToDB(newCart);
       return newCart;
     });
   };
-  
 
-  const removeFromCart = (productId) => {
+  const removeFromCart = (productId, color) => {
     setCartItems((prevItems) => {
-      const newCart = prevItems.filter((item) => item._id !== productId);
+      const newCart = prevItems.filter(
+        (item) => !(item.productId === productId && item.color === color)
+      );
       saveCartToDB(newCart);
       return newCart;
     });
@@ -112,7 +122,9 @@ export function CartProvider({ children }) {
   };
 
   return (
-    <CartContext.Provider value={{ cartItems, addToCart, removeFromCart, clearCart }}>
+    <CartContext.Provider
+      value={{ cartItems, addToCart, removeFromCart, clearCart }}
+    >
       {children}
     </CartContext.Provider>
   );
