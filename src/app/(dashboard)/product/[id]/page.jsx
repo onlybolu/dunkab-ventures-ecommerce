@@ -23,42 +23,10 @@ export default function ProductPage() {
   };
 
 
-  const handleAddToCart = async () => {
-    try {
-      // Client side update
-      addToCart({ ...product, quantity: count });
-      toast.success("Product added to cart!");
-  
-      // Get user session (or replace with your own userId logic)
-      const res = await fetch("/api/auth/session");
-      const session = await res.json();
-  
-      if (!session?.user?._id) {
-        // toast.error("You must be logged in to save cart.");
-        return;
-      }
-  
-      const userId = session.user._id;
-  
-      // Send to backend
-      const response = await fetch("/api/cart", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          userId,
-          productId: product._id,
-          quantity: count,
-        }),
-      });
-  
-      if (!response.ok) {
-        throw new Error("Failed to add product to cart");
-      }
-    } catch (err) {
-      console.error("Error saving to cart:", err);
-      toast.error("Failed to save cart in database.");
-    }
+  const handleAddToCart = () => {
+    addToCart({ ...product, quantity: count });
   };
+  
   
   const { favorite, setFavorite } = useContext(FavoriteContext);
 

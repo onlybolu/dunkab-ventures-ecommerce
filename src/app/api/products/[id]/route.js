@@ -14,7 +14,7 @@ export async function GET(req, { params }) {
 
     return NextResponse.json(product);
   } catch (error) {
-    console.error("Error fetching product:", error);
     return NextResponse.json({ message: "Server error" }, { status: 500 });
   }
 }
+

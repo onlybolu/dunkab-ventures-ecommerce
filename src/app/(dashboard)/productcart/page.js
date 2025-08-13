@@ -6,16 +6,44 @@ import Image from "next/image";
 import Logo from "../../../../components/Logo";
 import { usePathname, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
-// import { useSession } from "next-auth/react";
 import { toast } from "react-toastify";
 
 export default function CartPage() {
   const { cartItems, removeFromCart, clearCart } = useCart();
   const pathname = usePathname();
   const [previousPath, setPreviousPath] = useState(null);
-
-//   const { data: session } = useSession();
+  const [fullCartItems, setFullCartItems] = useState([]);
   const router = useRouter();
+
+  // Fetch product details for each productId in cartItems
+  useEffect(() => {
+    async function fetchProducts() {
+      if (!cartItems.length) {
+        setFullCartItems([]);
+        return;
+      }
+
+      try {
+        const products = await Promise.all(
+          cartItems.map(async (item) => {
+            const res = await fetch(`/api/products/${item._id}`);
+            if (!res.ok) throw new Error("Failed to fetch product");
+            const product = await res.json();
+            return {
+              ...product,
+              quantity: item.quantity,
+            };
+          })
+        );
+        setFullCartItems(products);
+      } catch (error) {
+        console.error("Error fetching product details:", error);
+        setFullCartItems([]);
+      }
+    }
+
+    fetchProducts();
+  }, [cartItems]);
 
   useEffect(() => {
     const lastPath = sessionStorage.getItem("currentPath");
@@ -52,18 +80,8 @@ export default function CartPage() {
       return;
     }
   
-    // if (!user || !user.email) {
-    //   toast.error("Please log in or create an account to checkout.");
-    //   router.push("/auth");
-    //   return;
-    // }
-  
-    // Proceed to checkout
     router.push("/checkout");
   };
-  
-
-  
 
   return (
     <div className="">
@@ -77,21 +95,14 @@ export default function CartPage() {
         />
         <div className="absolute top-0 left-0 w-full h-100 flex flex-col items-center justify-center bg-white/30 bg-opacity-50 text-white text-2xl font-bold">
           <div className=" flex items-center">
-            <Logo
-              width={"w-15"}
-              height={"h-20"}
-              hidden={"hidden"}
-              fontSize={"text-2xl"}
-            />
+            <Logo width={"w-15"} height={"h-20"} hidden={"hidden"} fontSize={"text-2xl"} />
             {previousPath && (
-              <>
-                <Link
-                  href={previousPath}
-                  className="hover:underline text-3xl font-semibold text-gray-700"
-                >
-                  {formatPathname(previousPath)}
-                </Link>
-              </>
+              <Link
+                href={previousPath}
+                className="hover:underline text-3xl font-semibold text-gray-700"
+              >
+                {formatPathname(previousPath)}
+              </Link>
             )}
           </div>
           <div className="text-gray-600 flex gap-2">
@@ -105,12 +116,12 @@ export default function CartPage() {
       <div className="p-4 max-w-3xl mx-auto">
         <h1 className="text-2xl font-bold mb-4">Your Cart</h1>
 
-        {cartItems.length === 0 ? (
+        {fullCartItems.length === 0 ? (
           <p>Your cart is empty.</p>
         ) : (
           <>
             <ul className="space-y-4">
-              {cartItems.map((item) => (
+              {fullCartItems.map((item) => (
                 <li
                   key={item._id}
                   className="flex justify-between items-center shadow-xl p-4 rounded-lg"
@@ -154,12 +165,12 @@ export default function CartPage() {
             </ul>
 
             <div className="mt-6 flex justify-between items-center">
-              {/* <button
+              <button
                 onClick={clearCart}
                 className="bg-red-600 text-white px-4 py-2 rounded-xl"
               >
                 Clear Cart
-              </button> */}
+              </button>
 
               <button
                 onClick={handleCheckout}

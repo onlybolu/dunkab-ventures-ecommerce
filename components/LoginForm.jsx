@@ -52,7 +52,7 @@ export default function LoginForm() {
         token: data.token,
       };
       localStorage.setItem("user", JSON.stringify(user));
-      router.push("/productcart");
+      window.location.href= ("/");
     } catch (err) {
       console.error(err);
       setError("Something went wrong. Please try again.");

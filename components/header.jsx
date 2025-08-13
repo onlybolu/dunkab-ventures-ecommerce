@@ -12,6 +12,9 @@ const Header = () => {
   const { cartItems } = useCart();
   const router = useRouter();
 
+const { clearCart } = useCart();
+
+
   const searchParams = useSearchParams();
   const [searchTerm, setSearchTerm] = useState(searchParams.get("q") || "");
 
@@ -51,6 +54,24 @@ const Header = () => {
     fetchCategories();
   }, []);
 
+
+  const handleLogout = async () => {
+    try {
+      await fetch("/api/logout", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+      });
+    } catch (err) {
+      console.error("Error contacting server for logout:", err);
+    }
+  
+    clearCart(); // ✅ clear cart in context
+    localStorage.removeItem("user");
+    sessionStorage.removeItem("currentPath");
+    window.location.href = "/";
+  };
+  
   
   const handleSearch = (e) => {
     e.preventDefault();
@@ -107,11 +128,11 @@ const Header = () => {
     setShowCategories(false);
   };
 
-  const handleLogout = () => {
-    localStorage.removeItem("user");
-    sessionStorage.removeItem("currentPath");
-    window.location.href = "/";
-  };
+  // const handleLogout = () => {
+  //   localStorage.removeItem("user");
+  //   sessionStorage.removeItem("currentPath");
+  //   window.location.href = "/";
+  // };
 
   const totalItems = cartItems.reduce((acc, item) => acc + (item.quantity || 1), 0);
 
@@ -151,14 +172,18 @@ const Header = () => {
             </Link>
           ))}
           <Profile hidden={false} md={true} />
-          <button onClick={handleLogout}>logout</button>
+          {/* <button onClick={handleLogout}>logout</button> */}
         </div>
 
-        {user?.email && (
+       {user ? (
+         <div>
+          {user?.email && (
           <button onClick={handleLogout} className="text-sm text-gray-600 hover:text-red-600 font-medium">
             {user?.email}
           </button>
         )}
+         </div>
+        ): (<button onClick={() => router.push("/authentication")}>Login</button>)}
         <Profile hidden={true} md={false} />
       </div>
 

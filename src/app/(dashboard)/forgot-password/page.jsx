@@ -85,7 +85,7 @@ export default function ForgotPassword() {
   };
 
   return (
-    <div className="space-y-4 max-w-md mx-auto">
+    <div className="space-y-4 max-w-md mx-auto mt-9 max-sm:px-4">
       {!otpSent ? (
         <form onSubmit={handleForgotPassword} className="space-y-4">
           {error && <div className="text-red-600 text-sm">{error}</div>}

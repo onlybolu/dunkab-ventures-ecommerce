@@ -10,13 +10,7 @@ export async function POST(req) {
   try {
     await Connectdb();
 
-    let body;
-    try {
-      body = await req.json();
-    } catch (err) {
-      return NextResponse.json({ error: "Invalid JSON body" }, { status: 400 });
-    }
-
+    const body = await req.json();
     const { email, password } = body;
 
     if (!email || !password) {
@@ -24,16 +18,6 @@ export async function POST(req) {
         { error: "Email and password are required" },
         { status: 400 }
       );
-    }
-
-    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-    if (!emailRegex.test(email)) {
-      return NextResponse.json({ error: "Invalid email format" }, { status: 400 });
-    }
-
-    const passwordRegex = /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]{8,}$/;
-    if (!passwordRegex.test(password)) {
-      return NextResponse.json({ error: "Password must be at least 8 characters long and contain at least one uppercase letter, one lowercase letter, one number, and one special character" }, { status: 400 });
     }
 
     const user = await User.findOne({ email });
@@ -46,15 +30,31 @@ export async function POST(req) {
       return NextResponse.json({ error: "Incorrect password" }, { status: 401 });
     }
 
-    const token = jwt.sign({ userId: user._id }, SECRET_KEY, { expiresIn: '1h' });
+    // Create JWT
+    const token = jwt.sign(
+      { _id: user._id, email: user.email, name: user.name },
+      SECRET_KEY,
+      { expiresIn: "1h" }
+    );
 
-    return NextResponse.json({
+    // Create response
+    const res = NextResponse.json({
       message: "Login successful",
       id: user._id,
       name: user.name,
       email: user.email,
-      token,
     });
+
+    // Set HTTP-only cookie
+    res.cookies.set("token", token, {
+      httpOnly: true,
+      secure: process.env.NODE_ENV === "production",
+      sameSite: "strict",
+      maxAge: 60 * 60, // 1 hour
+      path: "/",
+    });
+
+    return res;
   } catch (err) {
     console.error(err);
     return NextResponse.json({ error: "Internal server error" }, { status: 500 });
