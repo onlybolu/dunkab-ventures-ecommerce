@@ -513,7 +513,7 @@ const ProfilePopup = ({ user, onClose, onLogout, newAddress, setNewAddress, hand
             </div>
             <button
               onClick={onLogout}
-              className="w-full border border-gray-500 rounded text-white py-2 rounded-md hover:bg-red-600 transition-colors duration-200 font-semibold"
+              className="w-full border border-gray-500 rounded text-gray-700 py-2 rounded-md hover:bg-red-600 transition-colors duration-200 font-semibold"
             >
               Logout
             </button>
