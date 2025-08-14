@@ -5,12 +5,14 @@ import { useParams, useRouter } from "next/navigation";
 import { FavoriteContext } from "../../../../../context/FavoriteContext";
 import { useCart } from "../../../../../context/cartContext";
 import { toast, ToastContainer } from "react-toastify";
+import "react-toastify/dist/ReactToastify.css"; // Import toastify CSS
 
 export default function ProductPage() {
   const router = useRouter();
   const params = useParams();
   const { id } = params;
-  const { addToCart } = useCart();
+  // Destructure user from useCart to check login status
+  const { addToCart, user } = useCart();
 
   const [product, setProduct] = useState(null);
   const [relatedProducts, setRelatedProducts] = useState([]);
@@ -24,10 +26,18 @@ export default function ProductPage() {
   };
 
   const handleAddToCart = () => {
+    // Check if user is logged in before allowing to add to cart
+    if (!user?._id) {
+      toast.error("Please log in to add items to your cart.");
+      return; // Stop execution if user is not logged in
+    }
+
     if (product?.colors?.length > 0 && !selectedColor) {
       toast.error("Please select a color before adding to cart");
       return;
     }
+    
+    // Call addToCart from the context
     addToCart({ ...product, selectedColor, quantity: count });
     toast.success("Product added to cart");
   };
@@ -61,8 +71,10 @@ export default function ProductPage() {
 
       if (favorite.includes(productId)) {
         setFavorite(favorite.filter((id) => id !== productId));
+        toast.info("Product removed from wishlist.");
       } else {
         setFavorite([...favorite, productId]);
+        toast.success("Product added to wishlist!");
       }
     } catch (err) {
       console.error("Error saving to wishlist:", err);
@@ -157,7 +169,7 @@ export default function ProductPage() {
 
   return (
     <main className="p-6 mx-auto">
-      <ToastContainer/>
+      <ToastContainer position="top-right" autoClose={3000} hideProgressBar={false} newestOnTop={false} closeOnClick rtl={false} pauseOnFocusLoss draggable pauseOnHover />
       <div>
         <button
           className="bg-blue-600 text-white rounded-md cursor-pointer mb-3 px-4 py-2"

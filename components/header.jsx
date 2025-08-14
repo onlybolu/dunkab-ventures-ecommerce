@@ -4,42 +4,39 @@ import Logo from "./Logo";
 import Navbar from "./nav";
 import { usePathname, useSearchParams, useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
+// Profile component is now replaced by the ProfilePopup for user details
+// import Profile from "./profile"; // This import is no longer needed
+
+import { useCart } from "../context/cartContext"; // Ensure correct path to cartContext
 import Profile from "./profile";
-import { useCart } from "../context/cartContext";
 
 const Header = () => {
   const pathname = usePathname();
-  const { cartItems } = useCart();
+  const { cartItems, clearCartLocalOnly, user } = useCart(); 
+
   const router = useRouter();
-
-const { clearCart } = useCart();
-
 
   const searchParams = useSearchParams();
   const [searchTerm, setSearchTerm] = useState(searchParams.get("q") || "");
 
   const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const [user, setUser] = useState();
   const [categories, setCategories] = useState([]);
   const [showCategories, setShowCategories] = useState(false);
-  const [showUserDetails, setShowUserDetails] = useState(false);
+  const [showUserDetails, setShowUserDetails] = useState(false); // Still used for mobile menu internal state
+  const [showLogoutPopup, setShowLogoutPopup] = useState(false); 
+  const [showProfilePopup, setShowProfilePopup] = useState(false); // New state for Profile popup
 
   const [newAddress, setNewAddress] = useState("");
   const [isSaving, setIsSaving] = useState(false);
   const [saveMessage, setSaveMessage] = useState("");
 
   useEffect(() => {
-    const storedUser = localStorage.getItem("user");
-    if (storedUser) {
-      try {
-        const parsedUser = JSON.parse(storedUser);
-        setUser(parsedUser);
-        setNewAddress(parsedUser.address || "");
-      } catch {
-        localStorage.removeItem("user");
-      }
+    if (user && user.address) {
+      setNewAddress(user.address);
+    } else if (user === null) {
+      setNewAddress("");
     }
-  }, []);
+  }, [user]);
 
   useEffect(() => {
     const fetchCategories = async () => {
@@ -54,7 +51,6 @@ const { clearCart } = useCart();
     fetchCategories();
   }, []);
 
-
   const handleLogout = async () => {
     try {
       await fetch("/api/logout", {
@@ -66,12 +62,14 @@ const { clearCart } = useCart();
       console.error("Error contacting server for logout:", err);
     }
   
-    clearCart(); // ✅ clear cart in context
-    localStorage.removeItem("user");
+    clearCartLocalOnly(); 
+    localStorage.removeItem("user"); 
     sessionStorage.removeItem("currentPath");
-    window.location.href = "/";
+    
+    setShowLogoutPopup(true); 
+    setShowProfilePopup(false); // Close profile popup on logout
+    router.push("/"); 
   };
-  
   
   const handleSearch = (e) => {
     e.preventDefault();
@@ -91,6 +89,11 @@ const { clearCart } = useCart();
       setSaveMessage("Please enter a valid address.");
       return;
     }
+    if (!user || !user.email) {
+      setSaveMessage("Please log in to save your address.");
+      return;
+    }
+
     setIsSaving(true);
     try {
       const res = await fetch("/api/update-address", {
@@ -100,17 +103,15 @@ const { clearCart } = useCart();
       });
       const data = await res.json();
       if (res.ok) {
-        const updatedUser = { ...user, address: newAddress };
-        setUser(updatedUser);
-        localStorage.setItem("user", JSON.stringify(updatedUser));
         setSaveMessage("Address updated successfully!");
       } else {
         setSaveMessage(data.message || "Failed to update address.");
       }
     } catch {
       setSaveMessage("Error saving address.");
+    } finally {
+      setIsSaving(false);
     }
-    setIsSaving(false);
   };
 
   const handleCategoriesClick = () => {
@@ -119,8 +120,9 @@ const { clearCart } = useCart();
   };
 
   const handleMyAccountClick = () => {
-    setShowUserDetails(true);
-    setShowCategories(false);
+    // This will now open the ProfilePopup directly
+    setShowProfilePopup(true);
+    setIsMenuOpen(false); // Close the mobile menu when opening the popup
   };
 
   const handleBackToMenu = () => {
@@ -128,23 +130,38 @@ const { clearCart } = useCart();
     setShowCategories(false);
   };
 
-  // const handleLogout = () => {
-  //   localStorage.removeItem("user");
-  //   sessionStorage.removeItem("currentPath");
-  //   window.location.href = "/";
-  // };
-
   const totalItems = cartItems.reduce((acc, item) => acc + (item.quantity || 1), 0);
 
   return (
-    <header>
+    <header className="sticky top-0 z-50">
+      {/* Logout Popup Component */}
+      {showLogoutPopup && (
+        <LogoutPopup onClose={() => setShowLogoutPopup(false)} />
+      )}
+      {/* Profile Popup Component */}
+      {showProfilePopup && (
+        <ProfilePopup 
+          user={user} 
+          onClose={() => setShowProfilePopup(false)} 
+          onLogout={handleLogout}
+          newAddress={newAddress}
+          setNewAddress={setNewAddress}
+          handleSaveAddress={handleSaveAddress}
+          isSaving={isSaving}
+          saveMessage={saveMessage}
+          router={router} // Pass router for navigation within popup
+        />
+      )}
+
       {/* Top bar */}
-      <div className="bg-white shadow-lg px-4 py-2 flex justify-between items-center">
-        <div className="flex items-center gap-1">
+      <div className="bg-white shadow-md px-4 py-3 flex items-center justify-between">
+        <div className="flex items-center gap-4">
+          {/* Mobile Menu Toggle */}
           <div className="md:hidden flex items-center">
-          <button
-              onClick={() => setIsMenuOpen(!isMenuOpen)} // Toggle menu visibility
-              className="focus:outline-none"
+            <button
+              onClick={() => setIsMenuOpen(!isMenuOpen)}
+              className="focus:outline-none p-2 rounded-md hover:bg-gray-100 transition-colors"
+              aria-label="Toggle mobile menu"
             >
               <svg
                 xmlns="http://www.w3.org/2000/svg"
@@ -161,48 +178,121 @@ const { clearCart } = useCart();
               </svg>
             </button>
           </div>
-          <Logo width={"w-15"} height={"h-20"} fontSize={"text-2xl"} />
+          <Link href="/" className="flex-shrink-0">
+            <Logo width={"w-15"} height={"h-20"} fontSize={"text-2xl"} />
+          </Link>
+
+          {/* Desktop Search Bar */}
+          <form onSubmit={handleSearch} className="hidden md:flex flex-grow max-w-md ml-8">
+            <input
+              type="text"
+              placeholder="Search products..."
+              className="w-full border border-gray-300 rounded-l-md px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all duration-200"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              aria-label="Search products"
+            />
+            <button
+              type="submit"
+              className="bg-blue-600 text-white px-4 py-2 rounded-r-md hover:bg-blue-700 transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
+              aria-label="Submit search"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" className="bi bi-search" viewBox="0 0 16 16">
+                <path d="M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398h-.001q.044.06.085.12l3.96 3.96a.5.5 0 0 0 .707-.707l-3.96-3.96a.5.5 0 0 0-.12-.085zM12 6.5a5.5 5.5 0 1 1-11 0 5.5 5.5 0 0 1 11 0"/>
+              </svg>
+            </button>
+          </form>
         </div>
 
-        <div className="md:flex hidden items-center gap-3">
-          {Navbar.map((item) => (
-            <Link key={item.id} href={item.link}
-              className={`${pathname === item.link ? "text-red-600" : "text-gray-700"} hover:text-red-600 px-4 py-2`}>
-              {item.icon}
-            </Link>
-          ))}
-          <Profile hidden={false} md={true} />
-          {/* <button onClick={handleLogout}>logout</button> */}
+        {/* Desktop Nav Links */}
+        <div className="hidden md:flex items-center gap-6">
+          <nav className="flex items-center gap-4">
+            {Navbar.map((item) => (
+              <Link key={item.id} href={item.link}
+                className={`${pathname === item.link ? "text-blue-600 font-semibold" : "text-gray-700"} hover:text-blue-600 px-3 py-2 rounded-md transition-colors flex flex-col items-center justify-center`}
+              >
+                {item.icon}
+                <span className="text-xs mt-1">{item.name}</span> {/* Smaller text for nav items */}
+              </Link>
+            ))}
+          </nav>
+
+          {/* Desktop User Actions (Cart & Profile Icon) */}
+          <div className="flex items-center gap-4">
+            {/* <Link href="/productcart" className="relative p-2 rounded-full hover:bg-gray-100 transition-colors" aria-label="View shopping cart">
+              <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" fill="currentColor" className="bi bi-cart4" viewBox="0 0 16 16">
+                <path d="M0 2.5A.5.5 0 0 1 .5 2H2a.5.5 0 0 1 .485.379L2.89 4H14.5a.5.5 0 0 1 .485.621l-1.5 6A.5.5 0 0 1 13 11H4a.5.5 0 0 1-.485-.379L1.61 3H.5a.5.5 0 0 1-.5-.5M3.14 5l.5 2H5V5zM6 5v2h2V5zm3 0v2h2V5zm3 0v2h1.36l.5-2zm1.11 3H12v2h.61zM11 8H9v2h2zM8 8H6v2h2zM5 8H3.89l.5 2H5zm0 5a1 1 0 1 0 0 2 1 1 0 0 0 0-2m-2 1a2 2 0 1 1 4 0 2 2 0 0 1-4 0m9-1a1 1 0 1 0 0 2 1 1 0 0 0 0-2m-2 1a2 2 0 1 1 4 0 2 2 0 0 1-4 0" />
+              </svg>
+              {totalItems > 0 && (
+                <span className="absolute -top-1 -right-1 bg-red-600 text-white text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center">
+                  {totalItems}
+                </span>
+              )}
+            </Link> */}
+
+            <Profile  hidden={true} md={true} />
+            
+            {/* Desktop Profile Icon - Triggers ProfilePopup */}
+            <button 
+              onClick={() => setShowProfilePopup(true)} 
+              className="p-2 rounded-full hover:bg-gray-100 transition-colors flex flex-col items-center justify-center"
+              aria-label="User profile and account settings"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" fill="currentColor" className="bi bi-person" viewBox="0 0 16 16">
+                <path d="M8 8a3 3 0 1 0 0-6 3 3 0 0 0 0 6m2-3a2 2 0 1 1-4 0 2 2 0 0 1 4 0m4 8c0 1-1 1-1 1H3s-1 0-1-1 1-4 6-4 6 3 6 4m-1-.004c-.001-.246-.154-.986-.832-1.664C11.516 10.68 10.289 10 8 10s-3.516.68-4.168 1.332c-.678.678-.83 1.418-.832 1.664z" />
+              </svg>
+              <span className="text-xs mt-1">{user ? "Account" : "Login"}</span> {/* Text changes based on login status */}
+            </button>
+          </div>
         </div>
 
-       {user ? (
-         <div>
-          {user?.email && (
-          <button onClick={handleLogout} className="text-sm text-gray-600 hover:text-red-600 font-medium">
-            {user?.email}
+        {/* Mobile-only Cart and Profile Icons */}
+        <div className="md:hidden flex items-center gap-3"> {/* Made visible on mobile */}
+          <Link href="/productcart" className="relative p-2 rounded-full hover:bg-gray-100 transition-colors" aria-label="View shopping cart">
+            <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" fill="currentColor" className="bi bi-cart4" viewBox="0 0 16 16">
+              <path d="M0 2.5A.5.5 0 0 1 .5 2H2a.5.5 0 0 1 .485.379L2.89 4H14.5a.5.5 0 0 1 .485.621l-1.5 6A.5.5 0 0 1 13 11H4a.5.5 0 0 1-.485-.379L1.61 3H.5a.5.5 0 0 1-.5-.5M3.14 5l.5 2H5V5zM6 5v2h2V5zm3 0v2h2V5zm3 0v2h1.36l.5-2zm1.11 3H12v2h.61zM11 8H9v2h2zM8 8H6v2h2zM5 8H3.89l.5 2H5zm0 5a1 1 0 1 0 0 2 1 1 0 0 0 0-2m-2 1a2 2 0 1 1 4 0 2 2 0 0 1-4 0m9-1a1 1 0 1 0 0 2 1 1 0 0 0 0-2m-2 1a2 2 0 1 1 4 0 2 2 0 0 1-4 0" />
+            </svg>
+            {totalItems > 0 && (
+              <span className="absolute -top-1 -right-1 bg-red-600 text-white text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center">
+                {totalItems}
+              </span>
+            )}
+          </Link>
+          {/* Mobile Profile Icon - Triggers ProfilePopup */}
+          <button 
+            onClick={() => setShowProfilePopup(true)} 
+            className="p-2 rounded-full hover:bg-gray-100 transition-colors"
+            aria-label="User profile and account settings"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" fill="currentColor" className="bi bi-person" viewBox="0 0 16 16">
+              <path d="M8 8a3 3 0 1 0 0-6 3 3 0 0 0 0 6m2-3a2 2 0 1 1-4 0 2 2 0 0 1 4 0m4 8c0 1-1 1-1 1H3s-1 0-1-1 1-4 6-4 6 3 6 4m-1-.004c-.001-.246-.154-.986-.832-1.664C11.516 10.68 10.289 10 8 10s-3.516.68-4.168 1.332c-.678.678-.83 1.418-.832 1.664z" />
+            </svg>
           </button>
-        )}
-         </div>
-        ): (<button onClick={() => router.push("/authentication")}>Login</button>)}
-        <Profile hidden={true} md={false} />
+        </div>
       </div>
 
-      {/* Mobile Menu */}
-      <div className={`fixed top-0 left-0 h-full w-full bg-black/50 transform transition-transform duration-300 ${isMenuOpen ? "translate-x-0" : "translate-x-full"}`}>
-        <div className={`fixed top-0 left-0 h-full w-full bg-white shadow-2xl transform transition-transform duration-300 ${isMenuOpen ? "translate-x-0" : "translate-x-full"}`}>
+      {/* Mobile Menu (Side Drawer) */}
+      <div className={`fixed inset-0 bg-black/50 transition-opacity duration-300 ${isMenuOpen ? "opacity-100" : "opacity-0 pointer-events-none"}`}
+           onClick={() => setIsMenuOpen(false)}>
+        <div className={`fixed top-0 left-0 h-full w-72 bg-white shadow-2xl transform transition-transform duration-300 ${isMenuOpen ? "translate-x-0" : "-translate-x-full"}`}
+             onClick={(e) => e.stopPropagation()}>
           
           {/* Menu header */}
-          <div className="flex shadow-2xl w-full items-center justify-between px-3 py-4">
+          <div className="flex items-center justify-between px-4 py-4 border-b border-gray-200">
             {showUserDetails || showCategories ? (
-              <button onClick={handleBackToMenu} className="flex items-center gap-1 text-gray-700 hover:text-red-500">
-                ← Back
+              <button onClick={handleBackToMenu} className="flex items-center gap-1 text-gray-700 hover:text-blue-600 font-medium transition-colors">
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" className="bi bi-arrow-left" viewBox="0 0 16 16">
+                  <path fillRule="evenodd" d="M15 8a.5.5 0 0 0-.5-.5H2.707l3.147-3.146a.5.5 0 1 0-.708-.708l-4 4a.5.5 0 0 0 0 .708l4 4a.5.5 0 0 0 .708-.708L2.707 8.5H14.5A.5.5 0 0 0 15 8"/>
+                </svg>
+                Back
               </button>
             ) : (
-              <div className="flex w-full items-center justify-between px-3">
+              <div className="flex w-full items-center justify-between">
                       <Logo width={"w-15"} height={"h-20"} />
                       <button
                         onClick={() => setIsMenuOpen(false)}
-                        className="text-gray-700 font-bold hover:text-red-600"
+                        className="text-gray-700 hover:text-blue-600 p-2 rounded-md transition-colors"
+                        aria-label="Close mobile menu"
                       >
                         <svg
                           xmlns="http://www.w3.org/2000/svg"
@@ -220,169 +310,122 @@ const { clearCart } = useCart();
                       </button>
                     </div>
             )}
-            
           </div>
 
-            {/* video */}
-            <div>
-                      <video
-                        src="/ads.mp4"
-                        loop
-                        muted
-                        autoPlay
-                        playsInline
-                        className="w-full h-60 object-cover mt-4 rounded-lg shadow-md"
-                      ></video>
-                    </div>
-          {/* Search */}
-          <form onSubmit={handleSearch} className="pt-6 px-4">
-                      <input
-                        type="text"
-                        placeholder="Search products..."
-                        className="w-full border outline-0 border-gray-400 rounded-lg px-3 py-2"
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
-                      />
-                    </form>
+          {/* Mobile Search */}
+          <form onSubmit={handleSearch} className="p-4 border-b border-gray-200">
+            <input
+              type="text"
+              placeholder="Search products..."
+              className="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all duration-200"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
+              aria-label="Search products"
+            />
+          </form>
 
-          {/* Menu Content */}
-          <div className="flex flex-col gap-4 h-[50vh] pb-9 overflow-y-scroll mt-5 px-4">
-            {showUserDetails ? (
-              <div className="bg-white rounded-md py-3 px-4">
-                <h2 className="text-lg font-bold mb-4">My Account</h2>
-                <p className="mb-1"><strong>Name:</strong> {user?.name}</p>
-                <p className="mb-4"><strong>Email:</strong> {user?.email}</p>
-                <h3 className="text-lg font-bold mt-4 mb-2">Address</h3>
-                <input type="text" placeholder="Enter your address"
-                  className="w-full border outline-0 border-gray-300 rounded-lg px-3 py-2 mb-3 focus:border-red-500"
-                  value={newAddress} onChange={(e) => setNewAddress(e.target.value)} />
-                <button onClick={handleSaveAddress}
-                  className="bg-red-500 text-white px-4 py-2 rounded-lg hover:bg-red-600 transition-all w-full"
-                  disabled={isSaving}>
-                  {isSaving ? "Saving..." : "Save Address"}
-                </button>
-                {saveMessage && (
-                  <p className={`mt-2 text-sm ${saveMessage.includes("success") ? "text-green-600" : "text-red-600"}`}>
-                    {saveMessage}
-                  </p>
-                )}
+          {/* Mobile Menu Content - Scrollable */}
+          <div className="flex flex-col flex-grow overflow-y-auto pb-4">
+            {/* My Account section in mobile menu now triggers ProfilePopup */}
+            <button  
+              onClick={handleMyAccountClick} // This now directly opens the ProfilePopup
+              className="flex items-center justify-between p-4 border-y border-gray-200 mt-auto text-left w-full hover:bg-gray-50 transition-colors"
+            >
+              <div className="text-gray-700 flex items-center gap-2">
+                <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  width="22"
+                  height="22"
+                  fill="currentColor"
+                  className="bi bi-person"
+                  viewBox="0 0 16 16"
+                >
+                  <path d="M8 8a3 3 0 1 0 0-6 3 3 0 0 0 0 6m2-3a2 2 0 1 1-4 0 2 2 0 0 1 4 0m4 8c0 1-1 1-1 1H3s-1 0-1-1 1-4 6-4 6 3 6 4m-1-.004c-.001-.246-.154-.986-.832-1.664C11.516 10.68 10.289 10 8 10s-3.516.68-4.168 1.332c-.678.678-.83 1.418-.832 1.664z" />
+                </svg>
+                <div className="flex items-center gap-1">
+                  <p>Account:</p>
+                  <span className="text-sm text-gray-500">
+                    {user?.email || "Guest"}
+                  </span>
+                </div>
               </div>
-            ) : showCategories ? (
-              <ul className="flex flex-col gap-4 items-start">
-                {categories.map((category, index) => (
-                  <li key={index} className="w-full border-b border-gray-300">
-                    <Link href={`/products?category=${category}`} className="flex gap-2 w-full px-4 py-2 text-gray-700 hover:text-red-600">
-                      {category}
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                width="20"
+                height="20"
+                fill="gray"
+                className="bi bi-chevron-right"
+                viewBox="0 0 16 16"
+              >
+                <path fillRule="evenodd" d="M4.646 1.646a.5.5 0 0 1 .708 0l6 6a.5.5 0 0 1 0 .708l-6 6a.5.5 0 0 1-.708-.708L10.293 8 4.646 2.354a.5.5 0 0 1 0-.708"/>
+              </svg>
+            </button>
+
+            <ul className="flex flex-col"> {/* Main nav links in mobile menu */}
+              {Navbar.map((item) => (
+                <li key={item.id} className="border-b border-gray-100 last:border-b-0">
+                  {item.name === "Categories" ? (
+                    <button onClick={handleCategoriesClick}
+                      className="flex items-center gap-2 w-full px-4 py-3 text-gray-700 hover:bg-gray-50 hover:text-blue-600 transition-colors text-left">
+                      {item.icon} {item.name}
+                      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" className="bi bi-chevron-right ml-auto" viewBox="0 0 16 16">
+                        <path fillRule="evenodd" d="M4.646 1.646a.5.5 0 0 1 .708 0l6 6a.5.5 0 0 1 0 .708l-6 6a.5.5 0 0 1-.708-.708L10.293 8 4.646 2.354a.5.5 0 0 1 0-.708"/>
+                      </svg>
+                    </button>
+                  ) : (
+                    <Link href={item.link}
+                      className={`flex items-center gap-2 w-full px-4 py-3 ${pathname === item.link ? "text-blue-600 font-semibold bg-blue-50" : "text-gray-700"} hover:bg-gray-50 hover:text-blue-600 transition-colors`}
+                      onClick={() => setIsMenuOpen(false)}>
+                      {item.icon} {item.name}
                     </Link>
-                  </li>
-                ))}
-              </ul>
-            ) : (
-              <div className="bg-white rounded-md h-[60vh] overflow-y-scroll py-3">
-                <ul className="flex flex-col gap-4 items-start">
-                  {Navbar.map((item) => (
-                    <li key={item.id} className="w-full border-b border-gray-300">
-                      {item.name === "Categories" ? (
-                        <div onClick={handleCategoriesClick}
-                          className="flex gap-2 w-full px-4 py-2 text-gray-700 hover:text-red-600 cursor-pointer">
-                          {item.icon} {item.name}
-                        </div>
-                      ) : (
-                        <Link href={item.link}
-                          className={`flex gap-2 w-full px-4 py-2 ${pathname === item.link ? "text-red-600" : "text-gray-700"} hover:text-red-600`}
-                          onClick={() => setIsMenuOpen(false)}>
-                          {item.icon} {item.name}
-                        </Link>
-                      )}
-                    </li>
-                  ))}
-                </ul>
+                  )}
+                </li>
+              ))}
+            </ul>
 
-                <div  onClick={handleMyAccountClick} className="flex items-center justify-between pb-4 px-4 border-b pt-5 border-gray-300 cursor-pointer">
-                              <div className="text-gray-700 flex items-center gap-2">
-                                <svg
-                                  xmlns="http://www.w3.org/2000/svg"
-                                  width="22"
-                                  height="22"
-                                  fill="currentColor"
-                                  className="bi bi-person"
-                                  viewBox="0 0 16 16"
-                                >
-                                  <path d="M8 8a3 3 0 1 0 0-6 3 3 0 0 0 0 6m2-3a2 2 0 1 1-4 0 2 2 0 0 1 4 0m4 8c0 1-1 1-1 1H3s-1 0-1-1 1-4 6-4 6 3 6 4m-1-.004c-.001-.246-.154-.986-.832-1.664C11.516 10.68 10.289 10 8 10s-3.516.68-4.168 1.332c-.678.678-.83 1.418-.832 1.664z" />
-                                </svg>
-                                <div className="flex items-center gap-1">
-                                  <p>My Account:</p>
-                                  <button
-                                   
-                                    className="text-sm cursor-pointer text-gray-500"
-                                  >
-                                    {user?.name || "Guest"}
-                                  </button>
-                                </div>
-                              </div>
-                              <svg
-                                xmlns="http://www.w3.org/2000/svg"
-                                width="22"
-                                height="22"
-                                fill="gray"
-                                className="bi bi-arrow-right"
-                                viewBox="0 0 16 16"
-                              >
-                                <path
-                                  fillRule="evenodd"
-                                  d="M1 8a.5.5 0 0 1 .5-.5h11.793l-3.147-3.146a.5.5 0 0 1 .708-.708l4 4a.5.5 0 0 1 0 .708l-4 4a.5.5 0 0 1-.708-.708L13.293 8.5H1.5A.5.5 0 0 1 1 8"
-                                />
-                              </svg>
-                            </div>
-
-                            <div className="px-2 pt-6 bg-white rounded-md flex flex-col gap-7">
-                            <div className="px-2">
-                              <Link
-                                href="/productcart"
-                                className="flex items-center justify-between border-b pb-2 cursor-pointer border-gray-300"
-                                onClick={() => setIsMenuOpen(false)}
-                              >
-                                <div className="flex items-center gap-2 text-gray-700">
-                                  <svg
-                                    xmlns="http://www.w3.org/2000/svg"
-                                    width="22"
-                                    height="22"
-                                    fill="green"
-                                    className="bi bi-cart4"
-                                    viewBox="0 0 16 16"
-                                  >
-                                    <path d="M0 2.5A.5.5 0 0 1 .5 2H2a.5.5 0 0 1 .485.379L2.89 4H14.5a.5.5 0 0 1 .485.621l-1.5 6A.5.5 0 0 1 13 11H4a.5.5 0 0 1-.485-.379L1.61 3H.5a.5.5 0 0 1-.5-.5M3.14 5l.5 2H5V5zM6 5v2h2V5zm3 0v2h2V5zm3 0v2h1.36l.5-2zm1.11 3H12v2h.61zM11 8H9v2h2zM8 8H6v2h2zM5 8H3.89l.5 2H5zm0 5a1 1 0 1 0 0 2 1 1 0 0 0 0-2m-2 1a2 2 0 1 1 4 0 2 2 0 0 1-4 0m9-1a1 1 0 1 0 0 2 1 1 0 0 0 0-2m-2 1a2 2 0 1 1 4 0 2 2 0 0 1-4 0" />
-                                  </svg>
-                                  <p>Cart</p>
-                                </div>
-                                <p className="text-gray-400">{totalItems} items</p>
-                              </Link>
-                            </div>
-                            <div className="px-2">
-                              <Link
-                                href={"/"}
-                                className="flex items-center justify-between pb-2 border-b cursor-pointer border-gray-300"
-                                onClick={() => setIsMenuOpen(false)}
-                              >
-                                <div className="flex items-center gap-2 text-gray-700">
-                                  <svg
-                                    xmlns="http://www.w3.org/2000/svg"
-                                    width="22"
-                                    height="22"
-                                    fill="red"
-                                    className="bi bi-suit-heart-fill"
-                                    viewBox="0 0 16 16"
-                                  >
-                                    <path d="M4 1c2.21 0 4 1.755 4 3.92C8 2.755 9.79 1 12 1s4 1.755 4 3.92c0 3.263-3.234 4.414-7.608 9.608a.513.513 0 0 1-.784 0C3.234 9.334 0 8.183 0 4.92 0 2.755 1.79 1 4 1" />
-                                  </svg>
-                                  <p>Wishlist</p>
-                                </div>
-                                <p className="text-gray-400">0 items</p>
-                              </Link>
-                            </div>
-                          </div>
-              </div>
-            )}
+            <div className="px-4 py-4 flex flex-col gap-4 border-t border-gray-200 mt-auto"> {/* Cart & Wishlist in mobile menu */}
+              <Link
+                href="/productcart"
+                className="flex items-center justify-between text-gray-700 hover:bg-gray-50 hover:text-blue-600 p-2 rounded-md transition-colors"
+                onClick={() => setIsMenuOpen(false)}
+              >
+                <div className="flex items-center gap-2">
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    width="22"
+                    height="22"
+                    fill="currentColor"
+                    className="text-blue-600"
+                    viewBox="0 0 16 16"
+                  >
+                    <path d="M0 2.5A.5.5 0 0 1 .5 2H2a.5.5 0 0 1 .485.379L2.89 4H14.5a.5.5 0 0 1 .485.621l-1.5 6A.5.5 0 0 1 13 11H4a.5.5 0 0 1-.485-.379L1.61 3H.5a.5.5 0 0 1-.5-.5M3.14 5l.5 2H5V5zM6 5v2h2V5zm3 0v2h2V5zm3 0v2h1.36l.5-2zm1.11 3H12v2h.61zM11 8H9v2h2zM8 8H6v2h2zM5 8H3.89l.5 2H5zm0 5a1 1 0 1 0 0 2 1 1 0 0 0 0-2m-2 1a2 2 0 1 1 4 0 2 2 0 0 1-4 0m9-1a1 1 0 1 0 0 2 1 1 0 0 0 0-2m-2 1a2 2 0 1 1 4 0 2 2 0 0 1-4 0" />
+                  </svg>
+                  <p>Cart</p>
+                </div>
+                <p className="text-gray-500 text-sm font-medium">{totalItems} items</p>
+              </Link>
+            
+              <Link
+                href={"/"}
+                className="flex items-center justify-between text-gray-700 hover:bg-gray-50 hover:text-blue-600 p-2 rounded-md transition-colors"
+                onClick={() => setIsMenuOpen(false)}
+              >
+                <div className="flex items-center gap-2">
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    width="22"
+                    height="22"
+                    fill="currentColor"
+                    className="text-red-500"
+                    viewBox="0 0 16 16"
+                  >
+                    <path d="M4 1c2.21 0 4 1.755 4 3.92C8 2.755 9.79 1 12 1s4 1.755 4 3.92c0 3.263-3.234 4.414-7.608 9.608a.513.513 0 0 1-.784 0C3.234 9.334 0 8.183 0 4.92 0 2.755 1.79 1 4 1" />
+                  </svg>
+                  <p>Wishlist</p>
+                </div>
+                <p className="text-gray-500 text-sm font-medium">0 items</p>
+              </Link>
+            </div>
           </div>
         </div>
       </div>
@@ -391,3 +434,111 @@ const { clearCart } = useCart();
 };
 
 export default Header;
+
+// Custom Logout Popup Component (remains the same)
+const LogoutPopup = ({ onClose }) => {
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      onClose();
+    }, 3000);
+    return () => clearTimeout(timer);
+  }, [onClose]);
+
+  return (
+    <div className="fixed inset-0 bg-black/70 bg-opacity-70 flex items-center justify-center z-[1000]">
+      <div className="bg-white p-8 rounded-lg shadow-xl text-center max-w-sm w-full border border-gray-200 relative overflow-hidden">
+        <img 
+          src="https://placehold.co/400x200/e0e0e0/555555?text=Thank+You+for+Shopping!" 
+          alt="Thank You Ad" 
+          className="w-full h-32 object-cover rounded-t-lg mb-4"
+          onError={(e) => { e.target.onerror = null; e.target.src="https://placehold.co/400x200/e0e0e0/555555?text=Image+Failed+to+Load"; }}
+        />
+
+        <h2 className="text-2xl font-bold text-gray-800 mb-2">
+          Logout Successful!
+        </h2>
+        <p className="text-base text-gray-700 mb-6">
+          Thank you for patronizing Dunkab Ventures. We hope to see you again soon! 👋
+        </p>
+        <button
+          onClick={onClose}
+          className="bg-blue-600 text-white font-semibold py-2 px-6 rounded-md hover:bg-blue-700 transition-colors duration-200 shadow-md focus:outline-none focus:ring-2 focus:ring-blue-300"
+        >
+          Close
+        </button>
+      </div>
+    </div>
+  );
+};
+
+
+// NEW: Profile Popup Component
+const ProfilePopup = ({ user, onClose, onLogout, newAddress, setNewAddress, handleSaveAddress, isSaving, saveMessage, router }) => {
+  return (
+    <div className="fixed inset-0 bg-black/70 bg-opacity-70 flex items-center justify-center z-[1000]" onClick={onClose}>
+      <div className="bg-white p-6 rounded-lg shadow-xl max-w-md w-full relative" onClick={(e) => e.stopPropagation()}>
+        <button onClick={onClose} className="absolute top-3 right-3 text-gray-500 hover:text-gray-800 p-1 rounded-full transition-colors" aria-label="Close profile popup">
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" className="bi bi-x-lg" viewBox="0 0 16 16">
+            <path d="M2.146 2.854a.5.5 0 1 1 .708-.708L8 7.293l5.146-5.147a.5.5 0 0 1 .708.708L8.707 8l5.147 5.146a.5.5 0 0 1-.708.708L8 8.707l-5.146 5.147a.5.5 0 0 1-.708-.708L7.293 8z"/>
+          </svg>
+        </button>
+
+        {user ? (
+          <div>
+            <h2 className="text-2xl font-bold text-gray-800 mb-4">My Account</h2>
+            <div className="space-y-3 mb-6">
+              <p className="text-gray-700"><strong>Name:</strong> {user.name || 'N/A'}</p>
+              <p className="text-gray-700"><strong>Email:</strong> {user.email || 'N/A'}</p>
+              
+              <h3 className="text-lg font-semibold text-gray-800 mt-4 mb-2">Delivery Address</h3>
+              <input 
+                type="text" 
+                placeholder="Enter your address"
+                className="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all duration-200"
+                value={newAddress} 
+                onChange={(e) => setNewAddress(e.target.value)} 
+              />
+              <button 
+                onClick={handleSaveAddress}
+                className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition-colors duration-200 w-full font-semibold"
+                disabled={isSaving}
+              >
+                {isSaving ? "Saving..." : "Save Address"}
+              </button>
+              {saveMessage && (
+                <p className={`mt-2 text-sm ${saveMessage.includes("success") ? "text-green-600" : "text-red-600"}`}>
+                  {saveMessage}
+                </p>
+              )}
+            </div>
+            <button
+              onClick={onLogout}
+              className="w-full bg-red-500 text-white py-2 rounded-md hover:bg-red-600 transition-colors duration-200 font-semibold"
+            >
+              Logout
+            </button>
+          </div>
+        ) : (
+          <div className="text-center">
+            <h2 className="text-2xl font-bold text-gray-800 mb-4">Welcome to Dunkab Ventures!</h2>
+            <p className="text-gray-700 mb-6">Login or sign up to manage your orders, wishlist, and more.</p>
+            <div className="flex flex-col gap-3">
+              <button 
+                onClick={() => { onClose(); router.push("/authentication"); }}
+                className="bg-blue-600 text-white py-2 px-6 rounded-md hover:bg-blue-700 transition-colors duration-200 font-semibold"
+              >
+                Login
+              </button>
+              <button 
+                onClick={() => { onClose(); router.push("/authentication?signup=true"); }}
+                className="bg-gray-200 text-gray-800 py-2 px-6 rounded-md hover:bg-gray-300 transition-colors duration-200 font-semibold"
+              >
+                Sign Up
+              </button>
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
