@@ -345,7 +345,7 @@ const Header = () => {
                 <div className="flex items-center gap-1">
                   <p>Account:</p>
                   <span className="text-sm text-gray-500">
-                    {user?.email || "Guest"}
+                    {/* {user?.email || "Guest"} */}
                   </span>
                 </div>
               </div>
@@ -476,7 +476,7 @@ const LogoutPopup = ({ onClose }) => {
 const ProfilePopup = ({ user, onClose, onLogout, newAddress, setNewAddress, handleSaveAddress, isSaving, saveMessage, router }) => {
   return (
     <div className="fixed inset-0 bg-black/70 bg-opacity-70 flex items-center justify-center z-[1000]" onClick={onClose}>
-      <div className="bg-white p-6 rounded-lg shadow-xl max-w-md w-full relative" onClick={(e) => e.stopPropagation()}>
+      <div className="bg-white p-6 rounded-lg shadow-xl max-w-md w-full mx-3 relative" onClick={(e) => e.stopPropagation()}>
         <button onClick={onClose} className="absolute top-3 right-3 text-gray-500 hover:text-gray-800 p-1 rounded-full transition-colors" aria-label="Close profile popup">
           <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" className="bi bi-x-lg" viewBox="0 0 16 16">
             <path d="M2.146 2.854a.5.5 0 1 1 .708-.708L8 7.293l5.146-5.147a.5.5 0 0 1 .708.708L8.707 8l5.147 5.146a.5.5 0 0 1-.708.708L8 8.707l-5.146 5.147a.5.5 0 0 1-.708-.708L7.293 8z"/>
@@ -485,10 +485,10 @@ const ProfilePopup = ({ user, onClose, onLogout, newAddress, setNewAddress, hand
 
         {user ? (
           <div>
-            <h2 className="text-2xl font-bold text-gray-800 mb-4">My Account</h2>
+            <h2 className="text-2xl text-gray-800 mb-4">My Account</h2>
             <div className="space-y-3 mb-6">
-              <p className="text-gray-700"><strong>Name:</strong> {user.name || 'N/A'}</p>
-              <p className="text-gray-700"><strong>Email:</strong> {user.email || 'N/A'}</p>
+              <p className="text-gray-700">Name: {user.name || 'N/A'}</p>
+              <p className="text-gray-700">Email: {user.email || 'N/A'}</p>
               
               <h3 className="text-lg font-semibold text-gray-800 mt-4 mb-2">Delivery Address</h3>
               <input 
@@ -513,7 +513,7 @@ const ProfilePopup = ({ user, onClose, onLogout, newAddress, setNewAddress, hand
             </div>
             <button
               onClick={onLogout}
-              className="w-full bg-red-500 text-white py-2 rounded-md hover:bg-red-600 transition-colors duration-200 font-semibold"
+              className="w-full border border-gray-500 rounded text-white py-2 rounded-md hover:bg-red-600 transition-colors duration-200 font-semibold"
             >
               Logout
             </button>
