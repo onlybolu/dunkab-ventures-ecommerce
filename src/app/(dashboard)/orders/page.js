@@ -129,11 +129,11 @@ export default function OrdersPage() {
                     <p className="text-sm text-gray-500">Placed on: {formatDate(order.createdAt)}</p>
                   </div>
                   <div className="text-right">
-                    <span className={`px-3 py-1 text-sm font-semibold rounded-full ${getStatusClasses(order.orderStatus)}`}>
+                    {/* <span className={`px-3 py-1 text-sm font-semibold rounded-full ${getStatusClasses(order.orderStatus)}`}>
                       {order.orderStatus.charAt(0).toUpperCase() + order.orderStatus.slice(1)}
-                    </span>
-                    <p className="text-xs text-gray-500 mt-1">Payment: <span className={`font-semibold ${getStatusClasses(order.paymentStatus)} rounded-full px-2 py-0.5`}>
-                        {order.paymentStatus.charAt(0).toUpperCase() + order.paymentStatus.slice(1)}
+                    </span> */}
+                    <p className="text-xs text-gray-500 mt-1">Status: <span className={`px-3 py-1 text-sm font-semibold rounded-full ${getStatusClasses(order.orderStatus)}`}>
+                      {order.orderStatus.charAt(0).toUpperCase() + order.orderStatus.slice(1)}
                     </span></p>
                   </div>
                 </div>
