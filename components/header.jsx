@@ -3,32 +3,28 @@ import Link from "next/link";
 import Logo from "./Logo";
 import Navbar from "./nav";
 import { usePathname, useSearchParams, useRouter } from "next/navigation";
-import { useEffect, useState } from "react";
-// Profile component is now replaced by the ProfilePopup for user details
-// import Profile from "./profile"; // This import is no longer needed
-
-import { useCart } from "../context/cartContext"; // Ensure correct path to cartContext
+import { useEffect, useState, useRef } from "react";
+import { useCart } from "../context/cartContext";
 import Profile from "./profile";
 
 const Header = () => {
   const pathname = usePathname();
-  const { cartItems, clearCartLocalOnly, user } = useCart(); 
-
+  const { cartItems, clearCartLocalOnly, user } = useCart();
   const router = useRouter();
-
   const searchParams = useSearchParams();
   const [searchTerm, setSearchTerm] = useState(searchParams.get("q") || "");
-
   const [isMenuOpen, setIsMenuOpen] = useState(false);
+  const [isSearchOpen, setIsSearchOpen] = useState(false); // New state for mobile search
   const [categories, setCategories] = useState([]);
   const [showCategories, setShowCategories] = useState(false);
-  const [showUserDetails, setShowUserDetails] = useState(false); // Still used for mobile menu internal state
-  const [showLogoutPopup, setShowLogoutPopup] = useState(false); 
-  const [showProfilePopup, setShowProfilePopup] = useState(false); // New state for Profile popup
-
+  const [showUserDetails, setShowUserDetails] = useState(false);
+  const [showLogoutPopup, setShowLogoutPopup] = useState(false);
+  const [showProfilePopup, setShowProfilePopup] = useState(false);
   const [newAddress, setNewAddress] = useState("");
   const [isSaving, setIsSaving] = useState(false);
   const [saveMessage, setSaveMessage] = useState("");
+
+  const searchInputRef = useRef(null);
 
   useEffect(() => {
     if (user && user.address) {
@@ -51,6 +47,13 @@ const Header = () => {
     fetchCategories();
   }, []);
 
+  // Effect to focus the search input when the mobile search is opened
+  useEffect(() => {
+    if (isSearchOpen && searchInputRef.current) {
+      searchInputRef.current.focus();
+    }
+  }, [isSearchOpen]);
+
   const handleLogout = async () => {
     try {
       await fetch("/api/logout", {
@@ -61,16 +64,14 @@ const Header = () => {
     } catch (err) {
       console.error("Error contacting server for logout:", err);
     }
-  
-    clearCartLocalOnly(); 
-    localStorage.removeItem("user"); 
+    clearCartLocalOnly();
+    localStorage.removeItem("user");
     sessionStorage.removeItem("currentPath");
-    
-    setShowLogoutPopup(true); 
-    setShowProfilePopup(false); // Close profile popup on logout
-    router.push("/"); 
+    setShowLogoutPopup(true);
+    setShowProfilePopup(false);
+    router.push("/");
   };
-  
+
   const handleSearch = (e) => {
     e.preventDefault();
     const params = new URLSearchParams(searchParams.toString());
@@ -80,7 +81,8 @@ const Header = () => {
       params.delete("q");
     }
     router.push(`/products?${params.toString()}`);
-    setIsMenuOpen(false)
+    setIsMenuOpen(false);
+    setIsSearchOpen(false); // Close mobile search after submission
     setSearchTerm("");
   };
 
@@ -120,9 +122,8 @@ const Header = () => {
   };
 
   const handleMyAccountClick = () => {
-    // This will now open the ProfilePopup directly
     setShowProfilePopup(true);
-    setIsMenuOpen(false); // Close the mobile menu when opening the popup
+    setIsMenuOpen(false);
   };
 
   const handleBackToMenu = () => {
@@ -132,24 +133,25 @@ const Header = () => {
 
   const totalItems = cartItems.reduce((acc, item) => acc + (item.quantity || 1), 0);
 
+  // Toggle mobile search visibility
+  const toggleMobileSearch = () => {
+    setIsSearchOpen(!isSearchOpen);
+  };
+
   return (
     <header className="sticky top-0 z-50">
-      {/* Logout Popup Component */}
-      {showLogoutPopup && (
-        <LogoutPopup onClose={() => setShowLogoutPopup(false)} />
-      )}
-      {/* Profile Popup Component */}
+      {showLogoutPopup && <LogoutPopup onClose={() => setShowLogoutPopup(false)} />}
       {showProfilePopup && (
-        <ProfilePopup 
-          user={user} 
-          onClose={() => setShowProfilePopup(false)} 
+        <ProfilePopup
+          user={user}
+          onClose={() => setShowProfilePopup(false)}
           onLogout={handleLogout}
           newAddress={newAddress}
           setNewAddress={setNewAddress}
           handleSaveAddress={handleSaveAddress}
           isSaving={isSaving}
           saveMessage={saveMessage}
-          router={router} // Pass router for navigation within popup
+          router={router}
         />
       )}
 
@@ -198,7 +200,7 @@ const Header = () => {
               aria-label="Submit search"
             >
               <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" className="bi bi-search" viewBox="0 0 16 16">
-                <path d="M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398h-.001q.044.06.085.12l3.96 3.96a.5.5 0 0 0 .707-.707l-3.96-3.96a.5.5 0 0 0-.12-.085zM12 6.5a5.5 5.5 0 1 1-11 0 5.5 5.5 0 0 1 11 0"/>
+                <path d="M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398h-.001q.044.06.085.12l3.96 3.96a.5.5 0 0 0 .707-.707l-3.96-3.96a.5.5 0 0 0-.12-.085zM12 6.5a5.5 5.5 0 1 1-11 0 5.5 5.5 0 0 1 11 0" />
               </svg>
             </button>
           </form>
@@ -208,46 +210,45 @@ const Header = () => {
         <div className="hidden md:flex items-center gap-6">
           <nav className="flex items-center gap-4">
             {Navbar.map((item) => (
-              <Link key={item.id} href={item.link}
+              <Link
+                key={item.id}
+                href={item.link}
                 className={`${pathname === item.link ? "text-blue-600 font-semibold" : "text-gray-700"} hover:text-blue-600 px-3 py-2 rounded-md transition-colors flex flex-col items-center justify-center`}
               >
                 {item.icon}
-                <span className="text-xs mt-1">{item.name}</span> {/* Smaller text for nav items */}
+                <span className="text-xs mt-1">{item.name}</span>
               </Link>
             ))}
           </nav>
 
-          {/* Desktop User Actions (Cart & Profile Icon) */}
           <div className="flex items-center gap-4">
-            {/* <Link href="/productcart" className="relative p-2 rounded-full hover:bg-gray-100 transition-colors" aria-label="View shopping cart">
-              <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" fill="currentColor" className="bi bi-cart4" viewBox="0 0 16 16">
-                <path d="M0 2.5A.5.5 0 0 1 .5 2H2a.5.5 0 0 1 .485.379L2.89 4H14.5a.5.5 0 0 1 .485.621l-1.5 6A.5.5 0 0 1 13 11H4a.5.5 0 0 1-.485-.379L1.61 3H.5a.5.5 0 0 1-.5-.5M3.14 5l.5 2H5V5zM6 5v2h2V5zm3 0v2h2V5zm3 0v2h1.36l.5-2zm1.11 3H12v2h.61zM11 8H9v2h2zM8 8H6v2h2zM5 8H3.89l.5 2H5zm0 5a1 1 0 1 0 0 2 1 1 0 0 0 0-2m-2 1a2 2 0 1 1 4 0 2 2 0 0 1-4 0m9-1a1 1 0 1 0 0 2 1 1 0 0 0 0-2m-2 1a2 2 0 1 1 4 0 2 2 0 0 1-4 0" />
-              </svg>
-              {totalItems > 0 && (
-                <span className="absolute -top-1 -right-1 bg-red-600 text-white text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center">
-                  {totalItems}
-                </span>
-              )}
-            </Link> */}
-
-            <Profile  hidden={true} md={true} />
-            
-            {/* Desktop Profile Icon - Triggers ProfilePopup */}
-            <button 
-              onClick={() => setShowProfilePopup(true)} 
+            <Profile hidden={true} md={true} />
+            <button
+              onClick={() => setShowProfilePopup(true)}
               className="p-2 rounded-full hover:bg-gray-100 transition-colors flex flex-col items-center justify-center"
               aria-label="User profile and account settings"
             >
               <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" fill="currentColor" className="bi bi-person" viewBox="0 0 16 16">
                 <path d="M8 8a3 3 0 1 0 0-6 3 3 0 0 0 0 6m2-3a2 2 0 1 1-4 0 2 2 0 0 1 4 0m4 8c0 1-1 1-1 1H3s-1 0-1-1 1-4 6-4 6 3 6 4m-1-.004c-.001-.246-.154-.986-.832-1.664C11.516 10.68 10.289 10 8 10s-3.516.68-4.168 1.332c-.678.678-.83 1.418-.832 1.664z" />
               </svg>
-              <span className="text-xs mt-1">{user ? "Account" : "Login"}</span> {/* Text changes based on login status */}
+              <span className="text-xs mt-1">{user ? "Account" : "Login"}</span>
             </button>
           </div>
         </div>
 
-        {/* Mobile-only Cart and Profile Icons */}
-        <div className="md:hidden flex items-center gap-3"> {/* Made visible on mobile */}
+        {/* Mobile-only Icons (Search, Cart, Profile) */}
+        <div className="md:hidden flex items-center gap-3">
+          {/* New Mobile Search Button */}
+          <button
+            onClick={toggleMobileSearch}
+            className="p-2 rounded-full hover:bg-gray-100 transition-colors"
+            aria-label="Search"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" fill="currentColor" className="bi bi-search" viewBox="0 0 16 16">
+              <path d="M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398h-.001q.044.06.085.12l3.96 3.96a.5.5 0 0 0 .707-.707l-3.96-3.96a.5.5 0 0 0-.12-.085zM12 6.5a5.5 5.5 0 1 1-11 0 5.5 5.5 0 0 1 11 0" />
+            </svg>
+          </button>
+          {/* Cart Icon */}
           <Link href="/productcart" className="relative p-2 rounded-full hover:bg-gray-100 transition-colors" aria-label="View shopping cart">
             <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" fill="currentColor" className="bi bi-cart4" viewBox="0 0 16 16">
               <path d="M0 2.5A.5.5 0 0 1 .5 2H2a.5.5 0 0 1 .485.379L2.89 4H14.5a.5.5 0 0 1 .485.621l-1.5 6A.5.5 0 0 1 13 11H4a.5.5 0 0 1-.485-.379L1.61 3H.5a.5.5 0 0 1-.5-.5M3.14 5l.5 2H5V5zM6 5v2h2V5zm3 0v2h2V5zm3 0v2h1.36l.5-2zm1.11 3H12v2h.61zM11 8H9v2h2zM8 8H6v2h2zM5 8H3.89l.5 2H5zm0 5a1 1 0 1 0 0 2 1 1 0 0 0 0-2m-2 1a2 2 0 1 1 4 0 2 2 0 0 1-4 0m9-1a1 1 0 1 0 0 2 1 1 0 0 0 0-2m-2 1a2 2 0 1 1 4 0 2 2 0 0 1-4 0" />
@@ -258,14 +259,53 @@ const Header = () => {
               </span>
             )}
           </Link>
-          {/* Mobile Profile Icon - Triggers ProfilePopup */}
-          <button 
-            onClick={() => setShowProfilePopup(true)} 
+          {/* Mobile Profile Icon */}
+          <button
+            onClick={() => setShowProfilePopup(true)}
             className="p-2 rounded-full hover:bg-gray-100 transition-colors"
             aria-label="User profile and account settings"
           >
             <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" fill="currentColor" className="bi bi-person" viewBox="0 0 16 16">
               <path d="M8 8a3 3 0 1 0 0-6 3 3 0 0 0 0 6m2-3a2 2 0 1 1-4 0 2 2 0 0 1 4 0m4 8c0 1-1 1-1 1H3s-1 0-1-1 1-4 6-4 6 3 6 4m-1-.004c-.001-.246-.154-.986-.832-1.664C11.516 10.68 10.289 10 8 10s-3.516.68-4.168 1.332c-.678.678-.83 1.418-.832 1.664z" />
+            </svg>
+          </button>
+        </div>
+      </div>
+
+      {/* Mobile Search Overlay */}
+      <div
+        className={`fixed inset-x-0 top-0 pt-4 px-4 pb-3 bg-white shadow-md z-[60] transform transition-transform duration-300 ${isSearchOpen ? "translate-y-0" : "-translate-y-full"}`}
+      >
+        <div className="flex items-center justify-between">
+          <form onSubmit={handleSearch} className="flex-grow">
+            <div className="relative">
+              <input
+                type="text"
+                placeholder="Search products..."
+                className="w-full border border-gray-300 rounded-md pr-12 pl-4 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all duration-200"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                aria-label="Search products"
+                ref={searchInputRef}
+              />
+              <button
+                type="submit"
+                className="absolute right-0 top-0 h-full w-12 flex items-center justify-center text-gray-500 hover:text-gray-700"
+                aria-label="Submit search"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" className="bi bi-search" viewBox="0 0 16 16">
+                  <path d="M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398h-.001q.044.06.085.12l3.96 3.96a.5.5 0 0 0 .707-.707l-3.96-3.96a.5.5 0 0 0-.12-.085zM12 6.5a5.5 5.5 0 1 1-11 0 5.5 5.5 0 0 1 11 0" />
+                </svg>
+              </button>
+            </div>
+          </form>
+          <button
+            onClick={toggleMobileSearch}
+            className="ml-3 text-gray-500 hover:text-gray-800 p-2 rounded-md transition-colors"
+            aria-label="Close search"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="currentColor" className="bi bi-x" viewBox="0 0 16 16">
+              <path d="M4.646 4.646a.5.5 0 0 1 .708 0L8 7.293l2.646-2.647a.5.5 0 0 1 .708.708L8.707 8l2.647 2.646a.5.5 0 0 1-.708.708L8 8.707l-2.646 2.647a.5.5 0 0 1-.708-.708L7.293 8 4.646 5.354a.5.5 0 0 1 0-.708z" />
             </svg>
           </button>
         </div>
@@ -312,23 +352,13 @@ const Header = () => {
             )}
           </div>
 
-          {/* Mobile Search */}
-          <form onSubmit={handleSearch} className="p-4 border-b border-gray-200">
-            <input
-              type="text"
-              placeholder="Search products..."
-              className="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all duration-200"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              aria-label="Search products"
-            />
-          </form>
-
+          {/* Mobile Search has been moved to its own overlay, so we'll remove it from the menu */}
+          
           {/* Mobile Menu Content - Scrollable */}
           <div className="flex flex-col flex-grow overflow-y-auto pb-4">
             {/* My Account section in mobile menu now triggers ProfilePopup */}
             <button  
-              onClick={handleMyAccountClick} // This now directly opens the ProfilePopup
+              onClick={handleMyAccountClick}
               className="flex items-center justify-between p-4 border-y border-gray-200 mt-auto text-left w-full hover:bg-gray-50 transition-colors"
             >
               <div className="text-gray-700 flex items-center gap-2">
@@ -361,7 +391,7 @@ const Header = () => {
               </svg>
             </button>
 
-            <ul className="flex flex-col"> {/* Main nav links in mobile menu */}
+            <ul className="flex flex-col">
               {Navbar.map((item) => (
                 <li key={item.id} className="border-b border-gray-100 last:border-b-0">
                   {item.name === "Categories" ? (
@@ -383,7 +413,7 @@ const Header = () => {
               ))}
             </ul>
 
-            <div className="px-4 py-4 flex flex-col gap-4 border-t border-gray-200 mt-auto"> {/* Cart & Wishlist in mobile menu */}
+            <div className="px-4 py-4 flex flex-col gap-4 border-t border-gray-200 mt-auto">
               <Link
                 href="/productcart"
                 className="flex items-center justify-between text-gray-700 hover:bg-gray-50 hover:text-blue-600 p-2 rounded-md transition-colors"
@@ -447,9 +477,9 @@ const LogoutPopup = ({ onClose }) => {
   return (
     <div className="fixed inset-0 bg-black/70 bg-opacity-70 flex items-center justify-center z-[1000]">
       <div className="bg-white p-8 rounded-lg shadow-xl text-center max-w-sm w-full border border-gray-200 relative overflow-hidden">
-        <img 
-          src="https://placehold.co/400x200/e0e0e0/555555?text=Thank+You+for+Shopping!" 
-          alt="Thank You Ad" 
+        <img
+          src="https://placehold.co/400x200/e0e0e0/555555?text=Thank+You+for+Shopping!"
+          alt="Thank You Ad"
           className="w-full h-32 object-cover rounded-t-lg mb-4"
           onError={(e) => { e.target.onerror = null; e.target.src="https://placehold.co/400x200/e0e0e0/555555?text=Image+Failed+to+Load"; }}
         />
@@ -470,7 +500,6 @@ const LogoutPopup = ({ onClose }) => {
     </div>
   );
 };
-
 
 // NEW: Profile Popup Component
 const ProfilePopup = ({ user, onClose, onLogout, newAddress, setNewAddress, handleSaveAddress, isSaving, saveMessage, router }) => {
@@ -513,7 +542,7 @@ const ProfilePopup = ({ user, onClose, onLogout, newAddress, setNewAddress, hand
             </div>
             <button
               onClick={onLogout}
-              className="w-full border border-gray-500 rounded text-gray-700 py-2 rounded-md hover:bg-red-600 transition-colors duration-200 font-semibold"
+              className="w-full border border-gray-500 text-gray-700 py-2 rounded-md hover:bg-red-600 transition-colors duration-200 font-semibold"
             >
               Logout
             </button>

@@ -1,3 +1,4 @@
+// src/app/api/order/route.js
 import dbConnect from "../../../../lib/dbconnect";
 import Order from "../../../../models/Order";
 import { NextResponse } from "next/server";
@@ -7,19 +8,32 @@ export async function POST(request) {
   try {
     await dbConnect();
 
-    const { user, items, totalAmount, method, deliveryInfo, paymentStatus, orderStatus } =
-      await request.json();
+    // CORRECTED: Destructure userId, userName, and userEmail as separate fields
+    const { 
+      userId, 
+      userName, 
+      userEmail, 
+      items, 
+      totalAmount, 
+      method, 
+      deliveryInfo, 
+      paymentStatus, 
+      orderStatus 
+    } = await request.json();
 
-    // Clean prices
+    // Clean prices (existing logic)
     const cleanedItems = items.map((item) => ({
       ...item,
       price: typeof item.price === "string"
-        ? parseFloat(item.price.replace(/,/g, ""))
+        ? parseFloat(item.price.replace(/[^0-9.]/g, ""))
         : item.price,
     }));
 
     const order = new Order({
-      user,
+      // CORRECTED: Map the destructured fields to the Order schema
+      userId: userId, 
+      userName: userName, 
+      userEmail: userEmail, 
       items: cleanedItems,
       totalAmount: typeof totalAmount === "string"
         ? parseFloat(totalAmount.replace(/,/g, ""))
@@ -35,6 +49,10 @@ export async function POST(request) {
     return NextResponse.json({ success: true, order }, { status: 201 });
   } catch (error) {
     console.error("Error saving order:", error);
+    // Added more detailed logging for validation errors
+    if (error.name === 'ValidationError') {
+      console.error('Mongoose Validation Error Details:', error.errors);
+    }
     return NextResponse.json(
       { success: false, message: "Server error" },
       { status: 500 }
@@ -42,7 +60,7 @@ export async function POST(request) {
   }
 }
 
-// GET - Fetch orders
+// GET - Fetch orders (No changes needed here for the current issue)
 export async function GET(request) {
   try {
     await dbConnect();
@@ -52,10 +70,8 @@ export async function GET(request) {
 
     let orders;
     if (userId) {
-      //Return orders for specific user
-      orders = await Order.find({ user: userId }).sort({ createdAt: -1 });
+      orders = await Order.find({ userId: userId }).sort({ createdAt: -1 }); // Ensure it's userId: userId
     } else {
-      //Return all orders (admin)
       orders = await Order.find().sort({ createdAt: -1 });
     }
 

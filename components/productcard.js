@@ -55,7 +55,7 @@ const handleProductClick = () => {
 
       <h2 className="text-xl font-semibold mt-2">{product.title}</h2>
       <div className="flex flex-col justify-end h-full">
-      <div className="flex flex-col md:flex-row md:items-center justify-between mt-2">
+      <div className="flex flex-col justify-between mt-2">
       <p className="text-gray-600 mb-2">₦{product.price.toLocaleString()}</p>
       <Link href={`/product/${product._id}`}>
         <button className="mt-2 bg-blue-600 max-sm:text-[10px] text-white px-4 py-2 rounded-xl">
