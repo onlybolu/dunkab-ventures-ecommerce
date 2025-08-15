@@ -3,18 +3,20 @@ import Link from "next/link";
 import Logo from "./Logo";
 import Navbar from "./nav";
 import { usePathname, useSearchParams, useRouter } from "next/navigation";
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useContext } from "react";
 import { useCart } from "../context/cartContext";
+import { FavoriteContext } from "../context/FavoriteContext"; // Import FavoriteContext
 import Profile from "./profile";
 
 const Header = () => {
   const pathname = usePathname();
   const { cartItems, clearCartLocalOnly, user } = useCart();
+  const { favorite } = useContext(FavoriteContext); // Destructure favorite from context
   const router = useRouter();
   const searchParams = useSearchParams();
   const [searchTerm, setSearchTerm] = useState(searchParams.get("q") || "");
   const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const [isSearchOpen, setIsSearchOpen] = useState(false); // New state for mobile search
+  const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [categories, setCategories] = useState([]);
   const [showCategories, setShowCategories] = useState(false);
   const [showUserDetails, setShowUserDetails] = useState(false);
@@ -47,7 +49,6 @@ const Header = () => {
     fetchCategories();
   }, []);
 
-  // Effect to focus the search input when the mobile search is opened
   useEffect(() => {
     if (isSearchOpen && searchInputRef.current) {
       searchInputRef.current.focus();
@@ -82,7 +83,7 @@ const Header = () => {
     }
     router.push(`/products?${params.toString()}`);
     setIsMenuOpen(false);
-    setIsSearchOpen(false); // Close mobile search after submission
+    setIsSearchOpen(false);
     setSearchTerm("");
   };
 
@@ -132,8 +133,8 @@ const Header = () => {
   };
 
   const totalItems = cartItems.reduce((acc, item) => acc + (item.quantity || 1), 0);
+  const totalFavoriteItems = favorite.length;
 
-  // Toggle mobile search visibility
   const toggleMobileSearch = () => {
     setIsSearchOpen(!isSearchOpen);
   };
@@ -155,10 +156,8 @@ const Header = () => {
         />
       )}
 
-      {/* Top bar */}
       <div className="bg-white shadow-md px-4 py-3 flex items-center justify-between">
         <div className="flex items-center gap-4">
-          {/* Mobile Menu Toggle */}
           <div className="md:hidden flex items-center">
             <button
               onClick={() => setIsMenuOpen(!isMenuOpen)}
@@ -184,7 +183,6 @@ const Header = () => {
             <Logo width={"w-15"} height={"h-20"} fontSize={"text-2xl"} />
           </Link>
 
-          {/* Desktop Search Bar */}
           <form onSubmit={handleSearch} className="hidden md:flex flex-grow max-w-md ml-8">
             <input
               type="text"
@@ -206,7 +204,6 @@ const Header = () => {
           </form>
         </div>
 
-        {/* Desktop Nav Links */}
         <div className="hidden md:flex items-center gap-6">
           <nav className="flex items-center gap-4">
             {Navbar.map((item) => (
@@ -222,7 +219,30 @@ const Header = () => {
           </nav>
 
           <div className="flex items-center gap-4">
-            <Profile hidden={true} md={true} />
+            {/* Desktop Wishlist Icon */}
+            <Link href="/wishlists" className="relative flex flex-col items-center justify-center p-2 rounded-full hover:bg-gray-100 transition-colors" aria-label="View wishlist">
+              <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" fill="currentColor" className="bi bi-heart" viewBox="0 0 16 16">
+                <path d="m8 2.748-.717-.737C5.6.281 2.514.878 1.4 3.053c-.523 1.023-.641 2.5.314 4.385.92 1.815 2.834 3.989 6.286 6.357 3.452-2.368 5.365-4.542 6.286-6.357.955-1.886.838-3.362.314-4.385C13.486.878 10.4.28 8.717 2.01zM8 15C-7.333 4.868 3.279-3.04 7.824 1.143q.09.083.176.171a3 3 0 0 1 .176-.17C12.72-3.042 23.333 4.867 8 15"/>
+              </svg>
+              {totalFavoriteItems > 0 && (
+                <span className="absolute -top-1 -right-1 bg-red-600 text-white text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center">
+                  {totalFavoriteItems}
+                </span>
+              )}
+              <span className="text-gray-700 text-xs">Wishlist</span>
+            </Link>
+            {/* Desktop Cart Icon */}
+            {/* <Link href="/productcart" className="relative p-2 rounded-full hover:bg-gray-100 transition-colors" aria-label="View shopping cart">
+              <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" fill="currentColor" className="bi bi-cart4" viewBox="0 0 16 16">
+                <path d="M0 2.5A.5.5 0 0 1 .5 2H2a.5.5 0 0 1 .485.379L2.89 4H14.5a.5.5 0 0 1 .485.621l-1.5 6A.5.5 0 0 1 13 11H4a.5.5 0 0 1-.485-.379L1.61 3H.5a.5.5 0 0 1-.5-.5M3.14 5l.5 2H5V5zM6 5v2h2V5zm3 0v2h2V5zm3 0v2h1.36l.5-2zm1.11 3H12v2h.61zM11 8H9v2h2zM8 8H6v2h2zM5 8H3.89l.5 2H5zm0 5a1 1 0 1 0 0 2 1 1 0 0 0 0-2m-2 1a2 2 0 1 1 4 0 2 2 0 0 1-4 0m9-1a1 1 0 1 0 0 2 1 1 0 0 0 0-2m-2 1a2 2 0 1 1 4 0 2 2 0 0 1-4 0" />
+              </svg>
+              {totalItems > 0 && (
+                <span className="absolute -top-1 -right-1 bg-red-600 text-white text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center">
+                  {totalItems}
+                </span>
+              )}
+            </Link> */}
+            <Profile hidden={true} md={true} display={"block"} color={"text-gray-600"}/>
             <button
               onClick={() => setShowProfilePopup(true)}
               className="p-2 rounded-full hover:bg-gray-100 transition-colors flex flex-col items-center justify-center"
@@ -236,9 +256,7 @@ const Header = () => {
           </div>
         </div>
 
-        {/* Mobile-only Icons (Search, Cart, Profile) */}
         <div className="md:hidden flex items-center gap-3">
-          {/* New Mobile Search Button */}
           <button
             onClick={toggleMobileSearch}
             className="p-2 rounded-full hover:bg-gray-100 transition-colors"
@@ -248,7 +266,6 @@ const Header = () => {
               <path d="M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398h-.001q.044.06.085.12l3.96 3.96a.5.5 0 0 0 .707-.707l-3.96-3.96a.5.5 0 0 0-.12-.085zM12 6.5a5.5 5.5 0 1 1-11 0 5.5 5.5 0 0 1 11 0" />
             </svg>
           </button>
-          {/* Cart Icon */}
           <Link href="/productcart" className="relative p-2 rounded-full hover:bg-gray-100 transition-colors" aria-label="View shopping cart">
             <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" fill="currentColor" className="bi bi-cart4" viewBox="0 0 16 16">
               <path d="M0 2.5A.5.5 0 0 1 .5 2H2a.5.5 0 0 1 .485.379L2.89 4H14.5a.5.5 0 0 1 .485.621l-1.5 6A.5.5 0 0 1 13 11H4a.5.5 0 0 1-.485-.379L1.61 3H.5a.5.5 0 0 1-.5-.5M3.14 5l.5 2H5V5zM6 5v2h2V5zm3 0v2h2V5zm3 0v2h1.36l.5-2zm1.11 3H12v2h.61zM11 8H9v2h2zM8 8H6v2h2zM5 8H3.89l.5 2H5zm0 5a1 1 0 1 0 0 2 1 1 0 0 0 0-2m-2 1a2 2 0 1 1 4 0 2 2 0 0 1-4 0m9-1a1 1 0 1 0 0 2 1 1 0 0 0 0-2m-2 1a2 2 0 1 1 4 0 2 2 0 0 1-4 0" />
@@ -259,7 +276,6 @@ const Header = () => {
               </span>
             )}
           </Link>
-          {/* Mobile Profile Icon */}
           <button
             onClick={() => setShowProfilePopup(true)}
             className="p-2 rounded-full hover:bg-gray-100 transition-colors"
@@ -272,7 +288,6 @@ const Header = () => {
         </div>
       </div>
 
-      {/* Mobile Search Overlay */}
       <div
         className={`fixed inset-x-0 top-0 pt-4 px-4 pb-3 bg-white shadow-md z-[60] transform transition-transform duration-300 ${isSearchOpen ? "translate-y-0" : "-translate-y-full"}`}
       >
@@ -311,13 +326,11 @@ const Header = () => {
         </div>
       </div>
 
-      {/* Mobile Menu (Side Drawer) */}
       <div className={`fixed inset-0 bg-black/50 transition-opacity duration-300 ${isMenuOpen ? "opacity-100" : "opacity-0 pointer-events-none"}`}
            onClick={() => setIsMenuOpen(false)}>
         <div className={`fixed top-0 left-0 h-full w-72 bg-white shadow-2xl transform transition-transform duration-300 ${isMenuOpen ? "translate-x-0" : "-translate-x-full"}`}
              onClick={(e) => e.stopPropagation()}>
           
-          {/* Menu header */}
           <div className="flex items-center justify-between px-4 py-4 border-b border-gray-200">
             {showUserDetails || showCategories ? (
               <button onClick={handleBackToMenu} className="flex items-center gap-1 text-gray-700 hover:text-blue-600 font-medium transition-colors">
@@ -351,13 +364,9 @@ const Header = () => {
                     </div>
             )}
           </div>
-
-          {/* Mobile Search has been moved to its own overlay, so we'll remove it from the menu */}
           
-          {/* Mobile Menu Content - Scrollable */}
           <div className="flex flex-col flex-grow overflow-y-auto pb-4">
-            {/* My Account section in mobile menu now triggers ProfilePopup */}
-            <button  
+            <button
               onClick={handleMyAccountClick}
               className="flex items-center justify-between p-4 border-y border-gray-200 mt-auto text-left w-full hover:bg-gray-50 transition-colors"
             >
@@ -436,7 +445,7 @@ const Header = () => {
               </Link>
             
               <Link
-                href={"/"}
+                href={"/wishlists"}
                 className="flex items-center justify-between text-gray-700 hover:bg-gray-50 hover:text-blue-600 p-2 rounded-md transition-colors"
                 onClick={() => setIsMenuOpen(false)}
               >
@@ -449,11 +458,11 @@ const Header = () => {
                     className="text-red-500"
                     viewBox="0 0 16 16"
                   >
-                    <path d="M4 1c2.21 0 4 1.755 4 3.92C8 2.755 9.79 1 12 1s4 1.755 4 3.92c0 3.263-3.234 4.414-7.608 9.608a.513.513 0 0 1-.784 0C3.234 9.334 0 8.183 0 4.92 0 2.755 1.79 1 4 1" />
+                    <path d="M8 2.748-.717-.737C5.6.281 2.514.878 1.4 3.053c-.523 1.023-.641 2.5.314 4.385.92 1.815 2.834 3.989 6.286 6.357 3.452-2.368 5.365-4.542 6.286-6.357.955-1.886.838-3.362.314-4.385C13.486.878 10.4.28 8.717 2.01zM8 15C-7.333 4.868 3.279-3.04 7.824 1.143q.09.083.176.171a3 3 0 0 1 .176-.17C12.72-3.042 23.333 4.867 8 15"/>
                   </svg>
                   <p>Wishlist</p>
                 </div>
-                <p className="text-gray-500 text-sm font-medium">0 items</p>
+                <p className="text-gray-500 text-sm font-medium">{totalFavoriteItems} items</p>
               </Link>
             </div>
           </div>
@@ -465,7 +474,6 @@ const Header = () => {
 
 export default Header;
 
-// Custom Logout Popup Component (remains the same)
 const LogoutPopup = ({ onClose }) => {
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -501,7 +509,6 @@ const LogoutPopup = ({ onClose }) => {
   );
 };
 
-// NEW: Profile Popup Component
 const ProfilePopup = ({ user, onClose, onLogout, newAddress, setNewAddress, handleSaveAddress, isSaving, saveMessage, router }) => {
   return (
     <div className="fixed inset-0 bg-black/70 bg-opacity-70 flex items-center justify-center z-[1000]" onClick={onClose}>

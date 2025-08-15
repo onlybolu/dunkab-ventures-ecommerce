@@ -2,7 +2,7 @@
 import { usePathname, useRouter } from "next/navigation";
 import { useCart } from "../context/cartContext";
 
-const Profile = ({ hidden, md }) => {
+const Profile = ({ hidden, md, display, color }) => {
   const router = useRouter();
   const { cartItems } = useCart(); 
   const pathname = usePathname()
@@ -39,7 +39,7 @@ const Profile = ({ hidden, md }) => {
     <div
       className={`${hidden ? "block" : "hidden"} ${
         md ? "md:block" : "md:hidden"
-      } relative cursor-pointer`}
+      } relative cursor-pointer flex flex-col items-center justify-center ${color}`}
       onClick={handleCartClick}
     >
       <svg
@@ -57,6 +57,7 @@ const Profile = ({ hidden, md }) => {
           {totalItems}
         </span>
       )}
+      <span className={`${display} text-gray-600 text-xs`}>Cart</span>
     </div>
   );
 };
