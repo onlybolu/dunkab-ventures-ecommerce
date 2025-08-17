@@ -3,6 +3,9 @@ import User from "../../../../../models/user";
 import { hashPassword } from "../../../../../lib/hash";
 import { NextResponse } from "next/server";
 import { sendWelcomeEmail } from "../../../../../lib/mailer";
+import jwt from 'jsonwebtoken'; // Import jwt
+
+const JWT_SECRET = process.env.JWT_SECRET; // Use JWT_SECRET as per your session API
 
 export async function POST(req) {
   await Connectdb();
@@ -49,6 +52,31 @@ export async function POST(req) {
   const hashed = await hashPassword(password);
   const user = await User.create({ name, email, password: hashed });
 
+  // --- NEW: Generate JWT and set HttpOnly cookie, identical to login API ---
+  const token = jwt.sign(
+    { _id: user._id, email: user.email, name: user.name },
+    JWT_SECRET, // Use the same secret key as your login API
+    { expiresIn: "1h" } // Token expiration time
+  );
+
+  // Create response
+  const res = NextResponse.json({
+    message: "User registered successfully",
+    id: user._id,
+    name: user.name,
+    email: user.email,
+  });
+
+  // Set HTTP-only cookie
+  res.cookies.set("token", token, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === "production", // Set to true in production
+    sameSite: "strict",
+    maxAge: 60 * 60, // 1 hour
+    path: "/",
+  });
+  // --- END NEW ---
+
   // Send welcome email
   try {
     await sendWelcomeEmail(email, name);
@@ -57,10 +85,5 @@ export async function POST(req) {
     // Proceed anyway
   }
 
-  return NextResponse.json({
-    message: "User registered successfully",
-    id: user._id,
-    name: user.name,
-    email: user.email,
-  });
+  return res; // Return the response with the cookie set
 }

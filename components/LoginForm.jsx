@@ -49,10 +49,13 @@ export default function LoginForm() {
         id: data.id,
         name: data.name,
         email: data.email,
-        token: data.token,
       };
-      localStorage.setItem("user", JSON.stringify(user));
-      window.location.href= ("/");
+
+      sessionStorage.setItem("user", JSON.stringify(user));
+
+
+      router.push("/");
+
     } catch (err) {
       console.error(err);
       setError("Something went wrong. Please try again.");

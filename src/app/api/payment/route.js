@@ -4,11 +4,18 @@ import { NextResponse } from "next/server";
 export async function POST(req) {
   const body = await req.json();
 
+  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL;
+
+  if (!baseUrl) {
+    return NextResponse.json({ error: "Base URL is not configured." }, { status: 500 });
+  }
+
   const payload = {
     tx_ref: Date.now().toString(),
     amount: body.amount,
     currency: "NGN",
-    redirect_url: "http://dunkabventures.com/", // Change to your deployed URL
+    // CRITICAL FIX: The redirect URL must point to the root /api folder.
+    redirect_url: `${baseUrl}/api/payment/verify?orderId=${body.orderId}`,
     customer: {
       email: body.email,
       name: body.name,
@@ -17,7 +24,8 @@ export async function POST(req) {
     customizations: {
       title: "DUNKAB",
       description: "Product payment",
-      logo: "https://dunkabventures.com/logo.png", // Optional
+      // FIX: Use a root-relative path for the logo
+      logo: `${baseUrl}/logo.png`,
     },
   };
 

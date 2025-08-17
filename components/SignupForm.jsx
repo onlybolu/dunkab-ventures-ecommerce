@@ -16,6 +16,7 @@ export default function SignupForm() {
   const handleSignup = async (e) => {
     e.preventDefault();
     setLoading(true);
+    setError(""); // Clear previous errors
 
     try {
       const res = await fetch("/api/auth/signup", {
@@ -38,12 +39,19 @@ export default function SignupForm() {
         name: data.name,
         email: data.email,
       };
-      localStorage.setItem("user", JSON.stringify(user));
-      router.push("/productcart");
+
+      // --- IMPORTANT CHANGE: Using sessionStorage instead of localStorage ---
+      // This allows the CartProvider (or any other component checking sessionStorage)
+      // to immediately access the user data after signup, reducing perceived delay.
+      sessionStorage.setItem("user", JSON.stringify(user));
+
+      // Redirect to the home page after successful signup.
+      router.push("/");
+
     } catch (err) {
+      console.error(err);
       toast.error("Something went wrong. Please try again.");
       setError("Something went wrong. Please try again.");
-      setLoading(false);
     } finally {
       setLoading(false);
     }

@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import User from '../../../../models/user';
 import Connectdb from '../../../../lib/connectdb';
 
-// GET - Fetch a user's wishlist
+
 export async function GET(req) {
   try {
     await Connectdb();
@@ -39,23 +39,23 @@ export async function POST(req) {
     let message = '';
     let updatedUser;
 
-    // Check if the product already exists in the wishlist
+    
     const productExists = user.wishlist.some(item => item.toString() === productId);
 
     if (productExists) {
-      // If it exists, remove it
+    
       updatedUser = await User.findByIdAndUpdate(
         userId,
         { $pull: { wishlist: productId } },
-        { new: true }
+        { new: true } 
       );
       message = 'Product removed from wishlist';
     } else {
-      // If it doesn't exist, add it
+   
       updatedUser = await User.findByIdAndUpdate(
         userId,
         { $addToSet: { wishlist: productId } },
-        { new: true } // $addToSet is a better alternative to $push as it prevents duplicates
+        { new: true } 
       );
       message = 'Product added to wishlist';
     }
@@ -64,7 +64,11 @@ export async function POST(req) {
       return NextResponse.json({ error: 'Failed to update wishlist' }, { status: 500 });
     }
 
-    return NextResponse.json({ message }, { status: 200 });
+  
+    return NextResponse.json({
+      message,
+      wishlist: updatedUser.wishlist // Now returning the updated wishlist
+    }, { status: 200 });
 
   } catch (error) {
     console.error(error);

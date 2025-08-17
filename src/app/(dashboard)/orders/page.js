@@ -76,9 +76,9 @@ export default function OrdersPage() {
         return "bg-green-100 text-green-800";
       case "cancelled":
         return "bg-red-100 text-red-800";
-      case "successful": // For payment status
+      case "successful":
         return "bg-green-100 text-green-800";
-      case "failed": // For payment status
+      case "failed":
         return "bg-red-100 text-red-800";
       default:
         return "bg-gray-100 text-gray-800";
@@ -128,13 +128,17 @@ export default function OrdersPage() {
                     <h2 className="text-lg font-bold text-gray-800">Order #{order._id.substring(0, 8)}</h2>
                     <p className="text-sm text-gray-500">Placed on: {formatDate(order.createdAt)}</p>
                   </div>
-                  <div className="text-right">
-                    {/* <span className={`px-3 py-1 text-sm font-semibold rounded-full ${getStatusClasses(order.orderStatus)}`}>
-                      {order.orderStatus.charAt(0).toUpperCase() + order.orderStatus.slice(1)}
-                    </span> */}
-                    <p className="text-xs text-gray-500 mt-1">Status: <span className={`px-3 py-1 text-sm font-semibold rounded-full ${getStatusClasses(order.orderStatus)}`}>
-                      {order.orderStatus.charAt(0).toUpperCase() + order.orderStatus.slice(1)}
-                    </span></p>
+                  <div className="text-right flex flex-col items-end space-y-1">
+                    <p className="text-xs text-gray-500 mt-1">
+                      Delivery Status: <span className={`px-2 py-1 text-xs font-semibold rounded-full ${getStatusClasses(order.orderStatus)}`}>
+                        {order.orderStatus.charAt(0).toUpperCase() + order.orderStatus.slice(1)}
+                      </span>
+                    </p>
+                    <p className="text-xs text-gray-500 mt-1">
+                      Payment Status: <span className={`px-2 py-1 text-xs font-semibold rounded-full ${getStatusClasses(order.paymentStatus)}`}>
+                        {order.paymentStatus.charAt(0).toUpperCase() + order.paymentStatus.slice(1)}
+                      </span>
+                    </p>
                   </div>
                 </div>
 
@@ -158,10 +162,6 @@ export default function OrdersPage() {
 
                 <div className="flex justify-between items-center border-t pt-4">
                   <p className="text-lg font-bold text-gray-900">Total: ₦{order.totalAmount.toLocaleString()}</p>
-                  {/* Link to a detailed order page (if you create one) */}
-                  {/* <Link href={`/orders/${order._id}`} className="text-blue-600 hover:underline font-semibold">
-                    View Details
-                  </Link> */}
                 </div>
               </div>
             ))}

@@ -8,17 +8,15 @@ export async function POST(request) {
   try {
     await dbConnect();
 
-    // CORRECTED: Destructure userId, userName, and userEmail as separate fields
+    // REMOVED: userName, userEmail from destructuring as they won't be saved directly on Order
     const { 
-      userId, 
-      userName, 
-      userEmail, 
+      userId, // This must be the actual MongoDB _id of the User document
       items, 
       totalAmount, 
       method, 
       deliveryInfo, 
       paymentStatus, 
-      orderStatus 
+      // orderStatus is derived below, not explicitly taken from body
     } = await request.json();
 
     // Clean prices (existing logic)
@@ -30,10 +28,8 @@ export async function POST(request) {
     }));
 
     const order = new Order({
-      // CORRECTED: Map the destructured fields to the Order schema
-      userId: userId, 
-      userName: userName, 
-      userEmail: userEmail, 
+      // CORRECTED: Save the user's _id into the 'user' field, which is a reference
+      user: userId, 
       items: cleanedItems,
       totalAmount: typeof totalAmount === "string"
         ? parseFloat(totalAmount.replace(/,/g, ""))
@@ -60,7 +56,7 @@ export async function POST(request) {
   }
 }
 
-// GET - Fetch orders (No changes needed here for the current issue)
+// GET - Fetch orders (This part is already correct for population)
 export async function GET(request) {
   try {
     await dbConnect();
@@ -70,9 +66,16 @@ export async function GET(request) {
 
     let orders;
     if (userId) {
-      orders = await Order.find({ userId: userId }).sort({ createdAt: -1 }); // Ensure it's userId: userId
+      orders = await Order.find({ user: userId }) 
+                            .populate({ path: 'user', select: 'name email' }) 
+                            .sort({ createdAt: -1 });
     } else {
-      orders = await Order.find().sort({ createdAt: -1 });
+      orders = await Order.find()
+                          .populate({
+                            path: 'user',
+                            select: 'name email' 
+                          })
+                          .sort({ createdAt: -1 });
     }
 
     return NextResponse.json({ success: true, orders });

@@ -4,6 +4,7 @@ import Header from "../../../components/header";
 import Middow from "../../../components/middow";
 import { FavoriteProvider } from "../../../context/FavoriteContext";
 import Script from "next/script";
+import MessagingDashboard from "../../../components/MessagingDashboard"; // Import the new component
 
 export default function RootLayout({ children }) {
   return (
@@ -27,6 +28,8 @@ export default function RootLayout({ children }) {
           <Footer />
         </div>
       </div>
+      {/* Messaging Dashboard added here, outside of other main content to ensure it floats */}
+      <MessagingDashboard />
     </div>
   );
 }

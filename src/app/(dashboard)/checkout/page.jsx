@@ -7,6 +7,7 @@ import { useState, useEffect } from "react";
 import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import Link from "next/link";
+import { nigeriaStates } from "../../../../lib/nigeriaStatesAndLgas";
 
 export default function CheckoutPage() {
   const { cartItems, clearCart, user, loading: contextLoading } = useCart();
@@ -20,9 +21,22 @@ export default function CheckoutPage() {
     phone: "",
     address: "",
   });
+  const [isWithinLagos, setIsWithinLagos] = useState(true);
+  const [selectedLGA, setSelectedLGA] = useState('');
+  const [selectedState, setSelectedState] = useState('');
+  const [lgasOfSelectedState, setLgasOfSelectedState] = useState([]);
   const [previousPath, setPreviousPath] = useState(null);
 
-  // Load user data from context and pre-fill form
+  useEffect(() => {
+    if (selectedState) {
+      const stateData = nigeriaStates.find(s => s.state === selectedState);
+      setLgasOfSelectedState(stateData ? stateData.lgas : []);
+      setSelectedLGA('');
+    } else {
+      setLgasOfSelectedState([]);
+    }
+  }, [selectedState]);
+
   useEffect(() => {
     if (!contextLoading && user) {
       setFormData((prev) => ({
@@ -35,14 +49,12 @@ export default function CheckoutPage() {
     }
   }, [contextLoading, user]);
 
-  // Set up previous path for breadcrumbs
   useEffect(() => {
     const lastPath = sessionStorage.getItem("currentPath");
     if (lastPath) setPreviousPath(lastPath);
     sessionStorage.setItem("lastPath", pathname);
   }, [pathname]);
 
-  // Utility function to clean and parse price strings
   const cleanPriceString = (priceString) => {
     if (typeof priceString === 'number') {
       return priceString;
@@ -55,7 +67,9 @@ export default function CheckoutPage() {
     (sum, item) => sum + cleanPriceString(item.price) * item.quantity,
     0
   );
-  const shippingFee = 2000;
+
+  const shippingFee = isWithinLagos ? (subtotal * 0.05) : (subtotal * 0.10);
+
   const total = subtotal + shippingFee;
 
   const handleChange = (e) => {
@@ -63,32 +77,29 @@ export default function CheckoutPage() {
     setFormData((prev) => ({ ...prev, [name]: value }));
   };
 
-  // Main checkout function
   const handleCheckout = async () => {
     if (cartItems.length === 0) {
       toast.error("Your cart is empty. Please add items before checking out.");
       return;
     }
 
-    if (!user || !user._id) {
-      toast.error("You need to be logged in to proceed with checkout. Redirecting you to login...");
-      router.push("/authentication");
-      return;
-    }
-
-    // Use the data directly from the formData state, which is the most reliable source.
     const { name, email, phone, address } = formData;
     
-    // Perform validation on required fields for a delivery order
     if (method === "delivery") {
+      if (!isWithinLagos && !selectedState) {
+          toast.error("Please select a state for delivery.");
+          return;
+      }
+      if (!selectedLGA) {
+          toast.error("Please select your Local Government Area.");
+          return;
+      }
       if (!name || !email || !phone || !address) {
         toast.error("Please fill in all delivery details: name, email, phone, and address.");
         return;
       }
-      sessionStorage.setItem("deliveryInfo", JSON.stringify(formData));
     }
 
-    sessionStorage.setItem("orderMethod", method);
     const totalAmount = method === "delivery" ? total : subtotal;
 
     try {
@@ -98,19 +109,22 @@ export default function CheckoutPage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          // These fields must match your backend schema exactly.
           userId: user._id, 
-          userName: name,
-          userEmail: email,
           items: cartItems,
           method,
-          deliveryInfo: formData,
+          deliveryInfo: {
+            ...formData,
+            shippingFee: shippingFee,
+            isWithinLagos: isWithinLagos,
+            state: isWithinLagos ? 'Lagos' : selectedState,
+            lga: selectedLGA,
+          },
           totalAmount,
           paymentStatus: "pending",
           orderStatus: "pending",
         }),
       });
-
+      
       const saveOrderData = await saveOrderRes.json();
       if (!saveOrderData.success) {
         toast.error("Could not save order. Please try again.");
@@ -125,21 +139,18 @@ export default function CheckoutPage() {
           name: name,
           email: email,
           phone: phone || user.phone,
+          orderId: saveOrderData.order._id,
         }),
       });
 
       const data = await res.json();
       if (data.link) {
-        sessionStorage.setItem("awaitingPayment", "true");
         window.location.href = data.link;
       } else {
         await fetch(`/api/order/${saveOrderData.order._id}`, {
           method: "PATCH",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            paymentStatus: "failed",
-            orderStatus: "cancelled"
-          }),
+          body: JSON.stringify({ paymentStatus: "failed", orderStatus: "cancelled" }),
         });
         toast.error("Payment could not be initiated. Order cancelled.");
       }
@@ -151,37 +162,12 @@ export default function CheckoutPage() {
     }
   };
 
-  // Payment status handling
   useEffect(() => {
-    if (typeof window !== "undefined") {
-      const url = new URL(window.location.href);
-      const status = url.searchParams.get("status");
-      const awaitingPayment = sessionStorage.getItem("awaitingPayment");
+    // This useEffect is now for redirecting from an old flow, can be left blank or removed after confirming it's not needed.
+    // The new payment flow doesn't use this, as it redirects to the server's verify endpoint.
+    // I will leave it blank for now to prevent any unintended behavior.
+  }, []);
 
-      if (awaitingPayment) {
-        sessionStorage.removeItem("awaitingPayment");
-
-        if (status === "successful") {
-          const orderMethod = sessionStorage.getItem("orderMethod");
-          
-          if (orderMethod === "delivery") {
-            toast.success("Payment successful! Your product will be delivered soon.");
-          } else if (orderMethod === "pickup") {
-            toast.success("Payment successful! Your product is ready for pickup. Visit our office.");
-          }
-
-          clearCart();
-          sessionStorage.removeItem("cartItems");
-          router.replace("/orders");
-        } else if (status === "cancelled" || status === "failed") {
-          toast.error("Payment was cancelled or failed. Please try again.");
-          router.replace("/checkout");
-        }
-      }
-    }
-  }, [clearCart, router]);
-
-  // Conditional rendering for initial loading and authentication
   if (contextLoading) {
     return (
       <div className="flex justify-center items-center h-screen bg-gray-100">
@@ -189,7 +175,6 @@ export default function CheckoutPage() {
       </div>
     );
   }
-
   if (!user) {
     router.push("/authentication");
     return null;
@@ -214,9 +199,7 @@ export default function CheckoutPage() {
 
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 md:py-12">
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-          {/* Left: Forms Section */}
           <div className="lg:col-span-2 space-y-6">
-            {/* Order Method Selection */}
             <div className="bg-white p-6 rounded-xl shadow-md">
               <h2 className="text-xl font-bold text-gray-800 mb-4">Choose Order Method</h2>
               <div className="relative">
@@ -225,7 +208,7 @@ export default function CheckoutPage() {
                   onChange={(e) => setMethod(e.target.value)}
                   className="block appearance-none w-full bg-white border border-gray-300 text-gray-700 py-3 px-4 pr-8 rounded-lg leading-tight focus:outline-none focus:bg-white focus:border-blue-500 transition-all"
                 >
-                  <option value="delivery">Delivery (₦2,000 Shipping Fee)</option>
+                  <option value="delivery">Delivery</option>
                   <option value="pickup">Pickup (Free)</option>
                 </select>
                 <div className="pointer-events-none absolute inset-y-0 right-0 flex items-center px-2 text-gray-700">
@@ -234,11 +217,82 @@ export default function CheckoutPage() {
               </div>
             </div>
 
-            {/* Delivery Information Form */}
             {method === "delivery" && (
               <div className="bg-white p-6 rounded-xl shadow-md">
                 <h2 className="text-xl font-bold text-gray-800 mb-4">Delivery Information</h2>
                 <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="col-span-1 sm:col-span-2">
+                      <label htmlFor="location" className="block text-sm font-medium text-gray-700 mb-1">
+                          Delivery Location
+                      </label>
+                      <select
+                          id="location"
+                          value={isWithinLagos}
+                          onChange={(e) => setIsWithinLagos(e.target.value === 'true')}
+                          className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
+                      >
+                          <option value="true">Within Lagos (5% of total price)</option>
+                          <option value="false">Outside Lagos (10% of total price)</option>
+                      </select>
+                  </div>
+                  {isWithinLagos ? (
+                    <div className="col-span-1 sm:col-span-2">
+                        <label htmlFor="lga" className="block text-sm font-medium text-gray-700 mb-1">
+                            Local Government Area (LGA)
+                        </label>
+                        <select
+                            id="lga"
+                            value={selectedLGA}
+                            onChange={(e) => setSelectedLGA(e.target.value)}
+                            className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
+                            required
+                        >
+                            <option value="">Select an LGA</option>
+                            {nigeriaStates.find(s => s.state === 'Lagos')?.lgas.map((lga) => (
+                                <option key={lga} value={lga}>{lga}</option>
+                            ))}
+                        </select>
+                    </div>
+                  ) : (
+                    <>
+                      <div className="col-span-1 sm:col-span-2">
+                          <label htmlFor="state" className="block text-sm font-medium text-gray-700 mb-1">
+                              State
+                          </label>
+                          <select
+                              id="state"
+                              value={selectedState}
+                              onChange={(e) => setSelectedState(e.target.value)}
+                              className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
+                              required
+                          >
+                              <option value="">Select a State</option>
+                              {nigeriaStates.map((s) => (
+                                  <option key={s.state} value={s.state}>{s.state}</option>
+                              ))}
+                          </select>
+                      </div>
+                      {selectedState && (
+                          <div className="col-span-1 sm:col-span-2">
+                              <label htmlFor="lga" className="block text-sm font-medium text-gray-700 mb-1">
+                                  Local Government Area (LGA)
+                              </label>
+                              <select
+                                  id="lga"
+                                  value={selectedLGA}
+                                  onChange={(e) => setSelectedLGA(e.target.value)}
+                                  className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
+                                  required
+                              >
+                                  <option value="">Select an LGA</option>
+                                  {nigeriaStates.find(s => s.state === selectedState)?.lgas.map((lga) => (
+                                      <option key={lga} value={lga}>{lga}</option>
+                                  ))}
+                              </select>
+                          </div>
+                      )}
+                    </>
+                  )}
                   <div className="col-span-1 sm:col-span-2">
                     <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-1">Full Name</label>
                     <input
@@ -295,7 +349,6 @@ export default function CheckoutPage() {
               </div>
             )}
 
-            {/* Pickup Information */}
             {method === "pickup" && (
               <div className="bg-white p-6 rounded-xl shadow-md">
                 <h2 className="text-xl font-bold text-gray-800 mb-4">Pickup Location Details</h2>
@@ -316,7 +369,6 @@ export default function CheckoutPage() {
             )}
           </div>
 
-          {/* Right: Cart Summary */}
           <div className="lg:col-span-1">
             <div className="bg-white p-6 rounded-xl shadow-md sticky top-28 h-fit">
               <h2 className="text-xl font-bold text-gray-800 mb-4 border-b pb-4">Your Order</h2>
@@ -352,7 +404,6 @@ export default function CheckoutPage() {
                 </div>
               )}
 
-              {/* Summary Totals */}
               <div className="mt-4 border-t border-gray-200 pt-4 space-y-3">
                 <p className="flex justify-between text-gray-700">
                   <span>Subtotal</span>
@@ -361,7 +412,9 @@ export default function CheckoutPage() {
                 {method === "delivery" && (
                   <p className="flex justify-between text-gray-700">
                     <span>Shipping</span>
-                    <span className="font-semibold">₦{shippingFee.toLocaleString()}</span>
+                    <span className="font-semibold">
+                      ₦{shippingFee.toLocaleString()}
+                    </span>
                   </p>
                 )}
                 <p className="flex justify-between font-bold text-xl text-gray-900">
@@ -372,7 +425,6 @@ export default function CheckoutPage() {
                 </p>
               </div>
 
-              {/* Checkout Button */}
               <button
                 onClick={handleCheckout}
                 disabled={loading || cartItems.length === 0}

@@ -6,7 +6,7 @@ const JWT_SECRET = process.env.JWT_SECRET;
 
 export async function GET(req) {
   try {
-    const cookieStore = await cookies(); // 
+    const cookieStore = await cookies();
     const token = cookieStore.get("token")?.value;
 
     if (!token) {
@@ -14,8 +14,11 @@ export async function GET(req) {
     }
 
     const decoded = jwt.verify(token, JWT_SECRET);
+    console.log("Session API: Decoded JWT payload:", decoded);
+
     return NextResponse.json({ user: decoded });
   } catch (error) {
+    console.error("Session API: Error verifying token:", error); // More specific error log
     return NextResponse.json({ error: "Invalid or expired token" }, { status: 403 });
   }
 }
