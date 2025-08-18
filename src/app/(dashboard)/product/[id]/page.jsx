@@ -14,7 +14,7 @@ export default function ProductPage() {
     const router = useRouter();
     const params = useParams();
     const { id } = params;
-    const { addToCart, user } = useCart();
+    const { addItemToCart, user } = useCart();
     const { favorite, handleFavourite } = useFavorite();
     const [product, setProduct] = useState(null);
     const [relatedProducts, setRelatedProducts] = useState([]);
@@ -38,7 +38,7 @@ export default function ProductPage() {
             return;
         }
 
-        addToCart({ ...product, selectedColor, quantity: count });
+        addItemToCart({ ...product, selectedColor, quantity: count });
         toast.success("Product added to cart");
     };
 
