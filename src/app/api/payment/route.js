@@ -1,10 +1,14 @@
-// src/app/api/payment/route.js
+
 import { NextResponse } from "next/server";
+import { headers } from "next/headers";
 
 export async function POST(req) {
   const body = await req.json();
 
-  const baseUrl = "http://dunkabventures.com";
+  const headersList = headers();
+  const protocol = headersList.get("x-forwarded-proto") || "http";
+  const host = headersList.get("host");
+  const baseUrl = `${protocol}://${host}`;
 
   if (!baseUrl) {
     return NextResponse.json({ error: "Base URL is not configured." }, { status: 500 });
@@ -14,7 +18,7 @@ export async function POST(req) {
     tx_ref: Date.now().toString(),
     amount: body.amount,
     currency: "NGN",
-    // CRITICAL FIX: The redirect URL must point to the root /api folder.
+    // This is the CRITICAL FIX: The redirect URL is now dynamic.
     redirect_url: `${baseUrl}/api/payment/verify?orderId=${body.orderId}`,
     customer: {
       email: body.email,
@@ -24,7 +28,7 @@ export async function POST(req) {
     customizations: {
       title: "DUNKAB",
       description: "Product payment",
-      // FIX: Use a root-relative path for the logo
+      // FIX: Use a dynamic base path for the logo.
       logo: `${baseUrl}/logo.png`,
     },
   };
