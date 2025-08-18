@@ -1,3 +1,5 @@
+// src/app/FavoriteContext.js
+
 "use client";
 import { createContext, useContext, useState, useEffect, useCallback } from "react";
 import { toast } from "react-toastify";
@@ -174,7 +176,7 @@ export function FavoriteProvider({ children }) {
     console.log("FavoriteContext: saveWishlistToDB called for productId:", productId);
     if (!user?._id) {
       console.warn("FavoriteContext: No user logged in, wishlist not saved to DB.");
-      throw new Error("User not logged in."); // Throw error to be caught by handleFavourite
+      throw new Error("User not logged in.");
     }
     setIsSavingFavorite(true);
     try {
@@ -186,20 +188,20 @@ export function FavoriteProvider({ children }) {
 
       if (res.ok) {
         console.log("FavoriteContext: Backend /api/wishlist POST successful. Re-fetching full wishlist.");
-        await fetchWishlistFromDB(user._id); // This will update the favorite state in context
-        // Removed success toast here, as handleFavourite will provide the final one
+        await fetchWishlistFromDB(user._id);
       } else {
         const errorData = await res.json();
         const errorMessage = errorData.message || "Failed to update wishlist in database.";
-        toast.error(errorMessage); // Keep this error toast
+        // FIX: Show a single, generic error toast here for database-level failures.
+        toast.error(errorMessage, { autoClose: 1500 });
         console.error("FavoriteContext: Backend /api/wishlist POST failed:", res.status, errorMessage);
-        throw new Error(errorMessage); // Propagate error for handleFavourite to catch
+        throw new Error(errorMessage);
       }
     } catch (err) {
       console.error("FavoriteContext: Error in saveWishlistToDB:", err);
-      // Removed generic error toast here, as handleFavourite will provide the final one or the specific one from above is enough
-      setTimeout(() => setFeedbackMessage(null), 3000);
-      throw err; // Re-throw to propagate to handleFavourite
+      // FIX: Show a single, generic error toast for network/server failures.
+      toast.error("An unexpected error occurred. Please try again.", { autoClose: 1500 });
+      throw err;
     } finally {
       setIsSavingFavorite(false);
       console.log("FavoriteContext: saveWishlistToDB finished.");
@@ -209,8 +211,8 @@ export function FavoriteProvider({ children }) {
   const handleFavourite = useCallback(async (productId) => {
     console.log("FavoriteContext: handleFavourite called for productId:", productId);
     if (!user?._id) {
-      toast.error("Please log in to add items to your wishlist.");
-      setTimeout(() => setFeedbackMessage(null), 3000);
+      // FIX: Use autoClose to set toast display duration
+      toast.error("Please log in to add items to your wishlist.", { autoClose: 1500 });
       return;
     }
 
@@ -228,22 +230,22 @@ export function FavoriteProvider({ children }) {
         actionPerformed = 'add';
       }
       console.log("FavoriteContext: Optimistic UI update. New favorite state:", newFavorite);
-      return newFavorite; // This updates the UI immediately
+      return newFavorite;
     });
 
     try {
       await saveWishlistToDB(productId);
       console.log("FavoriteContext: saveWishlistToDB successful and wishlist re-fetched.");
-      // --- IMPORTANT CHANGE: Only show the final success toast AFTER backend confirmation ---
+      // FIX: Use autoClose to set toast display duration
       if (actionPerformed === 'add') {
-          toast.success("Product successfully added to wishlist!");
+          toast.success("Product successfully added to wishlist!", { autoClose: 1500 });
       } else {
-          toast.info("Product successfully removed from wishlist.");
+          toast.info("Product successfully removed from wishlist.", { autoClose: 1500 });
       }
     } catch (err) {
       console.error("FavoriteContext: Error synchronizing wishlist with backend, reverting UI.", err);
       // If backend fails, revert the optimistic UI update to maintain accuracy
-      await fetchWishlistFromDB(user._id); // Revert by fetching true state from DB
+      await fetchWishlistFromDB(user._id);
       // The specific error toast (from saveWishlistToDB) is already handled.
     }
   }, [user, saveWishlistToDB, fetchWishlistFromDB]);
@@ -259,20 +261,21 @@ export function FavoriteProvider({ children }) {
       setFavorite([]);
       return;
     }
-    setFavorite([]); // Optimistic local clear
+    setFavorite([]);
     console.log("FavoriteContext: Optimistic local clear for wishlist.");
     try {
-      await fetch("/api/wishlist/clear", { // Assuming you have a /api/wishlist/clear endpoint
+      await fetch("/api/wishlist/clear", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ userId: user._id }),
       });
-      toast.success("Wishlist cleared successfully!");
+      // FIX: Use autoClose to set toast display duration
+      toast.success("Wishlist cleared successfully!", { autoClose: 1500 });
       console.log("FavoriteContext: Backend /api/wishlist/clear successful.");
     } catch (err) {
       console.error("FavoriteContext: Error clearing wishlist:", err);
-      toast.error("Failed to clear wishlist in database.");
-      // If clear fails, consider re-fetching to restore previous state
+      // FIX: Use autoClose to set toast display duration
+      toast.error("Failed to clear wishlist in database.", { autoClose: 1500 });
       await fetchWishlistFromDB(user._id);
       console.log("FavoriteContext: Failed to clear wishlist in DB, re-fetching to restore state.");
     }
@@ -291,11 +294,11 @@ export function FavoriteProvider({ children }) {
     handleFavourite,
     user,
     loading,
-    logoutUserLocally, // Exposed logout function
-    feedbackMessage, // Exposed feedback message
-    isSavingFavorite, // Exposed saving state
-    clearFavorite, // Exposed clear function
-    clearFavoriteLocalOnly, // Exposed local clear function
+    logoutUserLocally,
+    feedbackMessage,
+    isSavingFavorite,
+    clearFavorite,
+    clearFavoriteLocalOnly,
   };
 
   return (

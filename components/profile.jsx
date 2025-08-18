@@ -19,7 +19,7 @@ const Profile = ({ hidden, md, display, color }) => {
   const handleCartClick = () => {
     const storedUser = localStorage.getItem("user");
     if (!storedUser) {
-      // router.push("/authentication");
+      router.push("/productcart");
       return;
     }
     router.push("/productcart");

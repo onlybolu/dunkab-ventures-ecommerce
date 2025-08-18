@@ -39,7 +39,7 @@ export default function ProductPage() {
         }
 
         addItemToCart({ ...product, selectedColor, quantity: count });
-        toast.success("Product added to cart");
+        // toast.success("Product added to cart");
     };
 
     useEffect(() => {

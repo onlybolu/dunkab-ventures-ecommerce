@@ -9,7 +9,6 @@ import Payment from "../../../../../models/Payment";
 export async function GET(request) {
   await dbConnect();
   
-  // FIX: Dynamically get the base URL from the request headers.
   const headersList = headers();
   const protocol = headersList.get("x-forwarded-proto") || "http";
   const host = headersList.get("host");
@@ -25,18 +24,17 @@ export async function GET(request) {
 
   if (!orderId || !transactionId) {
     console.error("Missing orderId or transactionId in URL params.");
-    // FIX: Use the dynamic baseUrl for the redirect.
     return NextResponse.redirect(`${baseUrl}/status?status=failed`);
   }
 
-  try {
-    let paymentStatus = "failed";
-    let orderStatus = "cancelled";
+  // CRITICAL FIX: Initialize with 'failed' and 'cancelled'
+  let paymentStatus = "failed";
+  let orderStatus = "cancelled";
 
+  try {
+    // Only proceed with Flutterwave verification if the URL status is successful
     if (status === "successful" || status === "completed") {
       console.log("Initial status is successful. Verifying transaction...");
-      paymentStatus = "successful";
-      orderStatus = "pending";
 
       const flutterRes = await fetch(`https://api.flutterwave.com/v3/transactions/${transactionId}/verify`, {
         headers: { Authorization: `Bearer ${process.env.FLW_SECRET_KEY}` },
@@ -46,8 +44,12 @@ export async function GET(request) {
       const flutterData = await flutterRes.json();
       console.log("Flutterwave verification response data:", JSON.stringify(flutterData, null, 2));
 
+      // CRITICAL CHECK: Confirm both Flutterwave statuses are successful
       if (flutterData.status === "success" && flutterData.data.status === "successful") {
         console.log("Payment verification succeeded.");
+        paymentStatus = "successful";
+        orderStatus = "pending";
+
         await Payment.create({
           userId: (await Order.findById(orderId)).user,
           orderId: orderId,
@@ -58,11 +60,11 @@ export async function GET(request) {
         });
       } else {
         console.error("Payment verification failed based on Flutterwave's response.");
-        paymentStatus = "failed";
-        orderStatus = "cancelled";
+        // The variables remain "failed" and "cancelled" as they were initialized
       }
     }
-
+    
+    // FIX: This update call is now outside the 'if' block to ensure it always runs.
     const updatedOrder = await Order.findByIdAndUpdate(
       orderId,
       { paymentStatus: paymentStatus, orderStatus: orderStatus },
@@ -71,17 +73,16 @@ export async function GET(request) {
 
     if (updatedOrder && paymentStatus === "successful") {
       console.log("Order updated successfully. Redirecting to successful status page.");
-      // FIX: Use the dynamic baseUrl for the redirect.
       return NextResponse.redirect(`${baseUrl}/status?status=successful`);
     } else {
       console.log("Payment failed. Redirecting to failed status page.");
-      // FIX: Use the dynamic baseUrl for the redirect.
       return NextResponse.redirect(`${baseUrl}/status?status=failed`);
     }
 
   } catch (error) {
     console.error("Payment verification error in catch block:", error);
-    // FIX: Use the dynamic baseUrl for the redirect.
+    // CRITICAL FIX: Update order status to "failed" even if a network or server error occurs
+    await Order.findByIdAndUpdate(orderId, { paymentStatus: "failed", orderStatus: "cancelled" });
     return NextResponse.redirect(`${baseUrl}/status?status=failed`);
   }
 }

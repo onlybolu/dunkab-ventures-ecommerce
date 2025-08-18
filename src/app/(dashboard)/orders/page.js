@@ -114,7 +114,7 @@ export default function OrdersPage() {
 
   return (
     <div className="bg-gray-100 min-h-screen">
-      <ToastContainer position="top-center" autoClose={3000} newestOnTop={true} />
+      <ToastContainer position="top-center" autoClose={1000} newestOnTop={true} />
 
       <div className="bg-white py-8 md:py-12 shadow-sm">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -148,7 +148,7 @@ export default function OrdersPage() {
         ) : (
           <div className="space-y-8">
             <div className="flex flex-wrap space-x-2 mb-6">
-              {['all', 'successful', 'pending', 'failed'].map(status => (
+              {['all', 'successful', 'failed'].map(status => (
                 <button
                   key={status}
                   onClick={() => setSelectedStatus(status)}
@@ -240,6 +240,5 @@ export default function OrdersPage() {
         )}
         </div>
       </div>
-
   );
 }
