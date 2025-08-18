@@ -1,14 +1,16 @@
-// src/app/status/page.jsx
-
 "use client";
 
 import { useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
+import { useCart } from "../../../context/cartContext"; // Import the useCart hook
+import { toast, ToastContainer } from "react-toastify"; // Import for toasts
+import 'react-toastify/dist/ReactToastify.css';
 
 export default function PaymentStatusPage() {
   const searchParams = useSearchParams();
+  const { clearCart } = useCart(); // Destructure the clearCart function
   const [status, setStatus] = useState("pending");
   const [message, setMessage] = useState("Processing your payment...");
 
@@ -18,11 +20,14 @@ export default function PaymentStatusPage() {
     if (paymentStatus === "successful") {
       setStatus("successful");
       setMessage("Payment Successful! Your order has been placed.");
+      toast.success("Your payment was successful and your cart has been cleared!");
+      clearCart(); // Call clearCart when payment is successful
     } else if (paymentStatus === "cancelled" || paymentStatus === "failed") {
       setStatus("failed");
       setMessage("Payment Failed. Please try again.");
+      toast.error("Payment failed. Please check your details and try again.");
     }
-  }, [searchParams]);
+  }, [searchParams, clearCart]); // Add clearCart to the dependency array
 
   const getIcon = () => {
     if (status === "successful") {
@@ -41,11 +46,13 @@ export default function PaymentStatusPage() {
       return (
         <div className="animate-spin rounded-full h-20 w-20 border-t-4 border-b-4 border-blue-500"></div>
       );
+      // 
     }
   };
 
   return (
     <div className="bg-gray-100 min-h-screen flex items-center justify-center p-4">
+      <ToastContainer position="top-center" autoClose={5000} newestOnTop={true} />
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
