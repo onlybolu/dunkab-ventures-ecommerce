@@ -4,7 +4,7 @@ import { NextResponse } from "next/server";
 export async function POST(req) {
   const body = await req.json();
 
-  const baseUrl = process.env.NEXT_PUBLIC_BASE_URL;
+  const baseUrl = "http://dunkabventures.com";
 
   if (!baseUrl) {
     return NextResponse.json({ error: "Base URL is not configured." }, { status: 500 });
