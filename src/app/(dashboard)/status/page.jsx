@@ -4,7 +4,7 @@ import { useSearchParams } from "next/navigation";
 import { useEffect, useState } from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
-import { useCart } from "../../../context/cartContext"; // Import the useCart hook
+import { useCart } from "../../../../context/cartContext"; // Import the useCart hook
 import { toast, ToastContainer } from "react-toastify"; // Import for toasts
 import 'react-toastify/dist/ReactToastify.css';
 
