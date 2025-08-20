@@ -7,6 +7,7 @@ import "aos/dist/aos.css";
 import Image from "next/image";
 import Img1 from "../../../public/img1.png";
 import { useRouter } from "next/navigation";
+import Ads from "../../../components/Ads"
 
 export default function LandingPage() {
   const [products, setProducts] = useState([]);
@@ -81,6 +82,19 @@ export default function LandingPage() {
     });
   }, []);
 
+  const hero2 = [
+    {
+      id: 1,
+      name: "Cup",
+      img: "/img2.png"
+    },
+    {
+      id: 2,
+      name: "Ceramic buffet Stove",
+      img: "/img3.png"
+    },
+  ]
+
   return (
     <div className="text-gray-700">
       {/* Hero Section */}
@@ -104,15 +118,18 @@ export default function LandingPage() {
         />
       </section>
 
+      {/* ads section */}
+      <Ads data-aos="fade-up"/>
+
       {/* Features Section */}
       <section className="flex justify-evenly flex-col md:flex-row lg:flex-row pt-14 pb-20 bg-[#dbc8c8] text-gray-700">
-        {[1, 2].map((i) => (
-          <div key={i} className="relative flex items-end">
+        {hero2.map((i) => (
+          <div key={i.id} className="relative flex-col-reverse flex items-center gap-4">
             <div
               data-aos="zoom-in-up"
-              className="absolute bottom-5 md:bottom-12 lg:bottom-12 left-10 flex flex-col gap-3 z-10"
+              className="flex flex-col gap-3 z-10"
             >
-              <h1 className="text-xl font-medium">Fisti Cup</h1>
+              <h1 className="text-xl font-medium">{i.name}</h1>
               <Link href="/products">
                 <div className="flex flex-col gap-1">
                   <p className="font-medium">View More</p>
@@ -122,11 +139,11 @@ export default function LandingPage() {
             </div>
             <Image
               data-aos="zoom-in-down"
-              src="/img1.png"
-              alt="Fisti Cup"
+              src={i.img}
+              alt={i.name}
               width={10000}
               height={100}
-              className="w-96 pl-15 pb-4"
+              className="w-96 pb-4"
             />
           </div>
         ))}
