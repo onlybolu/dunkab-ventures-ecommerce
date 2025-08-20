@@ -102,7 +102,7 @@ export function CartProvider({ children }) {
       });
     } catch (err) {
       console.error("Error saving cart:", err);
-      toast.error("Failed to update cart. Please try again.");
+      // toast.error("Failed to update cart. Please try again.");
     }
   };
 
