@@ -13,6 +13,7 @@ const CartContext = createContext();
  * @param {object} { children } - React children to be rendered within the context.
  */
 export function CartProvider({ children }) {
+  // State to hold the current cart items. Initialized from sessionStorage.
   const [cartItems, setCartItems] = useState(() => {
     if (typeof window !== "undefined") {
       const storedCart = sessionStorage.getItem("cartItems");
@@ -21,10 +22,13 @@ export function CartProvider({ children }) {
     return [];
   });
   
+  // State to hold the authenticated user information
   const [user, setUser] = useState(null);
+  
+  // State to indicate if the initial context data (user, cart) is loading
   const [loading, setLoading] = useState(true);
 
-  // Memoize fetchSessionAndCart, its dependencies are only stable setters
+  // New: A single, robust function to fetch both the user session and their cart
   const fetchSessionAndCart = useCallback(async () => {
     try {
       const res = await fetch("/api/auth/session", {
@@ -33,6 +37,7 @@ export function CartProvider({ children }) {
       });
 
       if (!res.ok) {
+        // No active session or failed fetch. Clear user and cart state.
         setUser(null);
         setCartItems([]);
         sessionStorage.removeItem("user");
@@ -41,9 +46,11 @@ export function CartProvider({ children }) {
 
       const { user: loggedInUser } = await res.json();
       
+      // Update user state and store it
       setUser(loggedInUser);
       sessionStorage.setItem("user", JSON.stringify(loggedInUser));
 
+      // Fetch the cart associated with the authenticated user
       const cartRes = await fetch(`/api/cart/${loggedInUser._id}`, {
         cache: "no-store",
         credentials: "include",
@@ -66,24 +73,23 @@ export function CartProvider({ children }) {
       console.error("Error fetching session or cart:", err);
       setUser(null);
       setCartItems([]);
-      sessionStorage.clear();
+      sessionStorage.clear(); // Clear potentially corrupted session data
     } finally {
-      setLoading(false);
+      setLoading(false); // Set loading to false once the check is complete
     }
-  }, []); // setUser and setCartItems are stable React dispatch functions, so no need to list them.
+  }, []);
 
-  // Effect hook for initial data loading and periodic refresh
+  // Effect hook to run initial data loading once on component mount
   useEffect(() => {
-    fetchSessionAndCart(); // Initial fetch
+    fetchSessionAndCart();
     
     // Set up a periodic check to keep the session fresh
-    const interval = setInterval(fetchSessionAndCart, 200000); // 200 seconds
+    const interval = setInterval(fetchSessionAndCart, 10000); // e.g., every 10 seconds
     return () => clearInterval(interval);
-  }, [fetchSessionAndCart]); // fetchSessionAndCart is memoized, so this effect runs once and then only when the function itself changes (which is rare).
+  }, [fetchSessionAndCart]);
 
   // A helper function to save the cart to the database
-  // THIS FUNCTION MUST BE MEMOIZED as it uses the 'user' state
-  const saveCartToDB = useCallback(async (newCart) => {
+  const saveCartToDB = async (newCart) => {
     if (!user?._id) {
       console.warn("No user logged in, cart not saved to DB.");
       return;
@@ -98,9 +104,8 @@ export function CartProvider({ children }) {
       console.error("Error saving cart:", err);
       toast.error("Failed to update cart. Please try again.");
     }
-  }, [user]); // Dependency: user. This function will only be recreated if 'user' changes.
+  };
 
-  // Memoize addItemToCart
   const addItemToCart = useCallback((product, selectedColor) => {
     if (!user?._id) {
       toast.error("Please log in to add items to your cart.");
@@ -173,6 +178,13 @@ export function CartProvider({ children }) {
     });
   }, [saveCartToDB]);
 
+  const logout = useCallback(() => {
+    setUser(null);
+    setCartItems([]);
+    sessionStorage.removeItem("user");
+    // You can optionally call saveCartToDB([]) here if you want to clear the DB as well
+  }, []);
+
   const cartTotal = cartItems.reduce(
     (total, item) => total + item.price * item.quantity,
     0
@@ -189,6 +201,7 @@ export function CartProvider({ children }) {
         cartTotal,
         user,
         loading,
+        logout,
       }}
     >
       {children}

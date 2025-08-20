@@ -45,7 +45,7 @@ export default function CartPage() {
             return {
               ...product,
               quantity: item.quantity,
-              color: item.color,
+              selectedColor: item.selectedColor,
               cartItemId: item.id || item.productId,
             };
           })
@@ -139,7 +139,7 @@ export default function CartPage() {
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
             <div className="lg:col-span-2 space-y-6">
               {fullCartItems.map((item) => (
-                <div key={`${item._id}-${item.color}`} className="bg-white p-6 rounded-xl shadow-md flex items-center space-x-6">
+                <div key={`${item._id}-${item.selectedColor}`} className="bg-white p-6 rounded-xl shadow-md flex items-center space-x-6">
                   <Link href={`/product/${item._id}`} className="flex-shrink-0">
                     <Image
                       src={item.image || `/placeholder-image.png`}
@@ -154,7 +154,7 @@ export default function CartPage() {
                       <h2 className="text-lg font-semibold text-gray-800">{item.title}</h2>
                     </Link>
                     <p className="text-sm text-gray-500 mt-1">
-                      {item.color && item.color !== "" && `Color: ${item.color}`}
+                      {item.selectedColor && item.selectedColor !== "" && `Color: ${item.selectedColor}`}
                     </p>
                     <p className="text-lg font-bold text-gray-900 mt-2">
                       ₦{(cleanPriceString(item.price) * item.quantity).toLocaleString()}

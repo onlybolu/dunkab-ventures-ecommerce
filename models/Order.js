@@ -10,7 +10,7 @@ const OrderSchema = new mongoose.Schema({
     name: String,
     price: Number,
     quantity: Number,
-    color: String,
+    selectedColor: String,
     image: String,
   }],
   method: { type: String, required: true }, 

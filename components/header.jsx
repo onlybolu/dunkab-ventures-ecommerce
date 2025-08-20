@@ -10,7 +10,7 @@ import Profile from "./profile"; // Assuming this is another component
 
 const Header = () => {
   const pathname = usePathname();
-  const { cartItems, clearCartLocalOnly, user, loading, logoutUserLocally: logoutCartUserLocally } = useCart();
+  const { cartItems, clearCartLocalOnly, user, loading, logout } = useCart();
   // --- IMPORTANT CHANGE: Get logoutUserLocally from useFavorite too ---
   const { favorite, logoutUserLocally: logoutFavoriteUserLocally } = useFavorite(); 
   const router = useRouter();
@@ -74,7 +74,7 @@ const Header = () => {
 
     // This immediately clears the user and cart states in the frontend context,
     // ensuring the UI updates without delay.
-    logoutCartUserLocally(); // Call logout from CartContext
+    logout(); // Call logout from CartContext
     logoutFavoriteUserLocally(); // --- NEW: Call logout from FavoriteContext ---
 
 
