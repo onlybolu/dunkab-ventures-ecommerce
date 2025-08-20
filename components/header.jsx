@@ -20,7 +20,7 @@ const Header = () => {
   const [isSearchOpen, setIsSearchOpen] = useState(false);
   const [categories, setCategories] = useState([]);
   const [showCategories, setShowCategories] = useState(false);
-  const [showUserDetails, setShowUserDetails] = useState(false); // Consider renaming this state for clarity, maybe isProfileMenuOpen
+  const [showUserDetails, setShowUserDetails] = useState(false);
   const [showLogoutPopup, setShowLogoutPopup] = useState(false);
   const [showProfilePopup, setShowProfilePopup] = useState(false);
   const [newAddress, setNewAddress] = useState("");

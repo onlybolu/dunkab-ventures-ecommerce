@@ -174,6 +174,7 @@ export default function CartPage() {
                   </div>
                 </div>
               ))}
+              {/* <button onClick={() => clearCart()}>clear cart</button> */}
             </div>
 
             <div className="lg:col-span-1 bg-white p-6 rounded-xl shadow-md sticky top-28 h-fit">

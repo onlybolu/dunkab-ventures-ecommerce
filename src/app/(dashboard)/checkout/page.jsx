@@ -43,8 +43,8 @@ export default function CheckoutPage() {
         ...prev,
         name: user.name || "",
         email: user.email || "",
-        phone: user.phone || "",
-        address: user.address || "",
+        // phone: "",
+        // address:  "",
       }));
     }
   }, [contextLoading, user]);
@@ -85,6 +85,12 @@ export default function CheckoutPage() {
 
     const { name, email, phone, address } = formData;
     
+    // Global validation check for name, email, and phone
+    if (!name || !email || !phone) {
+        toast.error("Please fill in your name, email, and phone number.");
+        return;
+    }
+
     if (method === "delivery") {
       if (!isWithinLagos && !selectedState) {
           toast.error("Please select a state for delivery.");
@@ -94,8 +100,8 @@ export default function CheckoutPage() {
           toast.error("Please select your Local Government Area.");
           return;
       }
-      if (!name || !email || !phone || !address) {
-        toast.error("Please fill in all delivery details: name, email, phone, and address.");
+      if (!address) {
+        toast.error("Please fill in the delivery address.");
         return;
       }
     }
@@ -138,7 +144,7 @@ export default function CheckoutPage() {
           amount: totalAmount.toFixed(2),
           name: name,
           email: email,
-          phone: phone || user.phone,
+          phone: phone,
           orderId: saveOrderData.order._id,
         }),
       });
@@ -217,6 +223,53 @@ export default function CheckoutPage() {
               </div>
             </div>
 
+            {/* NEW SECTION: Contact Information (Always Visible) */}
+            <div className="bg-white p-6 rounded-xl shadow-md">
+              <h2 className="text-xl font-bold text-gray-800 mb-4">Contact Information</h2>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="col-span-1">
+                      <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-1">Full Name</label>
+                      <input
+                          id="name"
+                          type="text"
+                          name="name"
+                          placeholder="Enter your full name"
+                          value={formData.name}
+                          onChange={handleChange}
+                          className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
+                          required
+                      />
+                  </div>
+                  <div className="col-span-1">
+                      <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">Email Address</label>
+                      <input
+                          id="email"
+                          type="email"
+                          name="email"
+                          placeholder="Enter your email"
+                          value={formData.email}
+                          onChange={handleChange}
+                          className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
+                          required
+                      />
+                  </div>
+                  <div className="col-span-1 sm:col-span-2">
+                      <label htmlFor="phone" className="block text-sm font-medium text-gray-700 mb-1">Phone Number</label>
+                      <input
+                          id="phone"
+                          type="tel"
+                          name="phone"
+                          placeholder="Enter your phone number"
+                          value={formData.phone}
+                          onChange={handleChange}
+                          className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
+                          required
+                      />
+                  </div>
+              </div>
+            </div>
+
+            {/* Delivery Information (Only Visible for Delivery) */}
             {method === "delivery" && (
               <div className="bg-white p-6 rounded-xl shadow-md">
                 <h2 className="text-xl font-bold text-gray-800 mb-4">Delivery Information</h2>
@@ -231,8 +284,8 @@ export default function CheckoutPage() {
                           onChange={(e) => setIsWithinLagos(e.target.value === 'true')}
                           className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
                       >
-                          <option value="true">Within Lagos (5% of total price)</option>
-                          <option value="false">Outside Lagos (10% of total price)</option>
+                          <option value="true">Within Lagos </option>
+                          <option value="false">Outside Lagos</option>
                       </select>
                   </div>
                   {isWithinLagos ? (
@@ -294,45 +347,6 @@ export default function CheckoutPage() {
                     </>
                   )}
                   <div className="col-span-1 sm:col-span-2">
-                    <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-1">Full Name</label>
-                    <input
-                      id="name"
-                      type="text"
-                      name="name"
-                      placeholder="Enter your full name"
-                      value={formData.name}
-                      onChange={handleChange}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
-                      required
-                    />
-                  </div>
-                  <div className="col-span-1">
-                    <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">Email Address</label>
-                    <input
-                      id="email"
-                      type="email"
-                      name="email"
-                      placeholder="Enter your email"
-                      value={formData.email}
-                      onChange={handleChange}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
-                      required
-                    />
-                  </div>
-                  <div className="col-span-1">
-                    <label htmlFor="phone" className="block text-sm font-medium text-gray-700 mb-1">Phone Number</label>
-                    <input
-                      id="phone"
-                      type="tel"
-                      name="phone"
-                      placeholder="Enter your phone number"
-                      value={formData.phone}
-                      onChange={handleChange}
-                      className="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-blue-500 focus:border-blue-500 outline-none transition-all"
-                      required
-                    />
-                  </div>
-                  <div className="col-span-1 sm:col-span-2">
                     <label htmlFor="address" className="block text-sm font-medium text-gray-700 mb-1">Delivery Address</label>
                     <textarea
                       id="address"
@@ -353,9 +367,12 @@ export default function CheckoutPage() {
               <div className="bg-white p-6 rounded-xl shadow-md">
                 <h2 className="text-xl font-bold text-gray-800 mb-4">Pickup Location Details</h2>
                 <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
-                  <p className="flex items-center text-gray-800 mb-2">
-                    <svg className="w-5 h-5 mr-2 text-blue-600" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"><path fillRule="evenodd" d="M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 110-4 2 2 0 010 4z" clipRule="evenodd"></path></svg>
-                    <span className="font-semibold">Main Office:</span> 123 Main Street, Lagos, Nigeria
+                  <p className="flex flex-col  text-gray-800 mb-2">
+                  <p className="flex items-center">
+                  <svg className="w-5 h-5 mr-2 text-blue-600" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"><path fillRule="evenodd" d="M5.05 4.05a7 7 0 119.9 9.9L10 18.9l-4.95-4.95a7 7 0 010-9.9zM10 11a2 2 110-4 2 2 0 010 4z" clipRule="evenodd"></path></svg>
+                  <span className="font-semibold">Main Office:</span> <br/>
+                  </p>
+                    Block 'N' shop 57 & 58, also known as Pepsi Building, Orodumu, Ebute Ero Market, Lagos Island, Nigeria.
                   </p>
                   <p className="flex items-center text-gray-800">
                     <svg className="w-5 h-5 mr-2 text-blue-600" fill="currentColor" viewBox="0 0 20 20" xmlns="http://www.w3.org/2000/svg"><path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm1-12a1 1 0 10-2 0v4a1 1 0 00.293.707l3 3a1 1 0 001.414-1.414L11 9.586V6z" clipRule="evenodd"></path></svg>

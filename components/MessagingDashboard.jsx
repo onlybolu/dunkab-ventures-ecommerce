@@ -81,7 +81,7 @@ const MessagingDashboard = () => {
           setMessages(fetchedMessages);
         } else {
           console.error("MessagingDashboard: Failed to fetch messages:", res.statusText);
-          toast.error("Failed to load chat messages.");
+          // toast.error("Failed to load chat messages.");
         }
       } catch (error) {
         console.error("MessagingDashboard: Error fetching messages:", error);

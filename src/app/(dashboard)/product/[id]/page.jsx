@@ -21,6 +21,7 @@ export default function ProductPage() {
     const [loading, setLoading] = useState(true);
     const [count, setCount] = useState(1);
     const [selectedColor, setSelectedColor] = useState("");
+    const [addToCartToast, setAddToCartToast] = useState(false);
 
     const handleQuantityChange = (newCount) => {
         if (newCount < 1) return;
@@ -38,8 +39,10 @@ export default function ProductPage() {
             return;
         }
 
+        setAddToCartToast(true);
         addItemToCart({ ...product, selectedColor, quantity: count });
         // toast.success("Product added to cart");
+        setTimeout(() => setAddToCartToast(false), 2000);
     };
 
     useEffect(() => {
@@ -128,6 +131,12 @@ export default function ProductPage() {
     return (
         <main className="bg-white min-h-screen">
             <ToastContainer  />
+            {addToCartToast &&
+             (
+                <div className="bg-green-400 fixed top-0 md:top-35 py-2 text-white text-center z-100 md:right-5 md:w-70 w-full ">
+                <p>Product added to cart</p>
+            </div>
+            )}
 
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
                 <div className="mb-6">

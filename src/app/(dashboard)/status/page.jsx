@@ -1,7 +1,7 @@
 "use client";
 
 import { useSearchParams } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import { useCart } from "../../../../context/cartContext";
@@ -14,20 +14,23 @@ export default function PaymentStatusPage() {
   const [status, setStatus] = useState("pending");
   const [message, setMessage] = useState("Processing your payment...");
 
+  const hasClearedCart = useRef(false);
+
   useEffect(() => {
     const paymentStatus = searchParams.get("status");
 
     if (paymentStatus === "successful") {
+      clearCart();
+      hasClearedCart.current = true;
       setStatus("successful");
       setMessage("Payment Successful! Your order has been placed.");
-      toast.success("Your payment was successful and your cart has been cleared!");
-      clearCart();
+      // toast.success("Your payment was successful!");
     } else if (paymentStatus === "cancelled" || paymentStatus === "failed") {
       setStatus("failed");
       setMessage("Payment Failed. Please try again.");
-      toast.error("Payment failed. Please check your details and try again.");
+      // toast.error("Payment failed. Please check your details and try again.");
     }
-  }, []); // <-- The crucial fix: an empty dependency array
+  }, [searchParams, clearCart]); 
 
   const getIcon = () => {
     if (status === "successful") {

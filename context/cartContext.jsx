@@ -13,7 +13,6 @@ const CartContext = createContext();
  * @param {object} { children } - React children to be rendered within the context.
  */
 export function CartProvider({ children }) {
-  // State to hold the current cart items. Initialized from sessionStorage.
   const [cartItems, setCartItems] = useState(() => {
     if (typeof window !== "undefined") {
       const storedCart = sessionStorage.getItem("cartItems");
@@ -22,13 +21,10 @@ export function CartProvider({ children }) {
     return [];
   });
   
-  // State to hold the authenticated user information
   const [user, setUser] = useState(null);
-  
-  // State to indicate if the initial context data (user, cart) is loading
   const [loading, setLoading] = useState(true);
 
-  // New: A single, robust function to fetch both the user session and their cart
+  // Memoize fetchSessionAndCart, its dependencies are only stable setters
   const fetchSessionAndCart = useCallback(async () => {
     try {
       const res = await fetch("/api/auth/session", {
@@ -37,7 +33,6 @@ export function CartProvider({ children }) {
       });
 
       if (!res.ok) {
-        // No active session or failed fetch. Clear user and cart state.
         setUser(null);
         setCartItems([]);
         sessionStorage.removeItem("user");
@@ -46,11 +41,9 @@ export function CartProvider({ children }) {
 
       const { user: loggedInUser } = await res.json();
       
-      // Update user state and store it
       setUser(loggedInUser);
       sessionStorage.setItem("user", JSON.stringify(loggedInUser));
 
-      // Fetch the cart associated with the authenticated user
       const cartRes = await fetch(`/api/cart/${loggedInUser._id}`, {
         cache: "no-store",
         credentials: "include",
@@ -73,23 +66,24 @@ export function CartProvider({ children }) {
       console.error("Error fetching session or cart:", err);
       setUser(null);
       setCartItems([]);
-      sessionStorage.clear(); // Clear potentially corrupted session data
+      sessionStorage.clear();
     } finally {
-      setLoading(false); // Set loading to false once the check is complete
+      setLoading(false);
     }
-  }, []);
+  }, []); // setUser and setCartItems are stable React dispatch functions, so no need to list them.
 
-  // Effect hook to run initial data loading once on component mount
+  // Effect hook for initial data loading and periodic refresh
   useEffect(() => {
-    fetchSessionAndCart();
+    fetchSessionAndCart(); // Initial fetch
     
     // Set up a periodic check to keep the session fresh
-    const interval = setInterval(fetchSessionAndCart, 10000); // e.g., every 10 seconds
+    const interval = setInterval(fetchSessionAndCart, 200000); // 200 seconds
     return () => clearInterval(interval);
-  }, [fetchSessionAndCart]);
+  }, [fetchSessionAndCart]); // fetchSessionAndCart is memoized, so this effect runs once and then only when the function itself changes (which is rare).
 
   // A helper function to save the cart to the database
-  const saveCartToDB = async (newCart) => {
+  // THIS FUNCTION MUST BE MEMOIZED as it uses the 'user' state
+  const saveCartToDB = useCallback(async (newCart) => {
     if (!user?._id) {
       console.warn("No user logged in, cart not saved to DB.");
       return;
@@ -104,9 +98,10 @@ export function CartProvider({ children }) {
       console.error("Error saving cart:", err);
       toast.error("Failed to update cart. Please try again.");
     }
-  };
+  }, [user]); // Dependency: user. This function will only be recreated if 'user' changes.
 
-  const addItemToCart = (product, selectedColor) => {
+  // Memoize addItemToCart
+  const addItemToCart = useCallback((product, selectedColor) => {
     if (!user?._id) {
       toast.error("Please log in to add items to your cart.");
       return;
@@ -139,28 +134,31 @@ export function CartProvider({ children }) {
           },
         ];
       }
-      saveCartToDB(newCart);
+      saveCartToDB(newCart); // This now calls the stable saveCartToDB
       return newCart;
     });
-  };
+  }, [user, saveCartToDB]); // Dependencies: user and the memoized saveCartToDB
 
-  const removeFromCart = (productId, color) => {
+  // Memoize removeFromCart
+  const removeFromCart = useCallback((productId, color) => {
     const normalizedColor = color ? color.toLowerCase().trim() : "";
     setCartItems((prevItems) => {
       const newCart = prevItems.filter(
         (item) => !(item.productId === productId && item.color === normalizedColor)
       );
-      saveCartToDB(newCart);
+      saveCartToDB(newCart); // This now calls the stable saveCartToDB
       return newCart;
     });
-  };
+  }, [saveCartToDB]); // Dependency: the memoized saveCartToDB
 
-  const clearCart = () => {
+  // Memoize clearCart
+  const clearCart = useCallback(() => {
     setCartItems([]);
-    saveCartToDB([]);
-  };
+    saveCartToDB([]); // This now calls the stable saveCartToDB
+  }, [saveCartToDB]); // Dependency: the memoized saveCartToDB
 
-  const updateQuantity = (productId, color, newQuantity) => {
+  // Memoize updateQuantity
+  const updateQuantity = useCallback((productId, color, newQuantity) => {
     const normalizedColor = color ? color.toLowerCase().trim() : "";
     setCartItems((prevItems) => {
         const updatedCart = prevItems
@@ -170,10 +168,10 @@ export function CartProvider({ children }) {
                     : item
             )
             .filter((item) => item.quantity > 0);
-        saveCartToDB(updatedCart);
+        saveCartToDB(updatedCart); // This now calls the stable saveCartToDB
         return updatedCart;
     });
-  };
+  }, [saveCartToDB]);
 
   const cartTotal = cartItems.reduce(
     (total, item) => total + item.price * item.quantity,

@@ -1,10 +1,9 @@
 import mongoose from 'mongoose';
 
 const OrderSchema = new mongoose.Schema({
-  // The correct way to reference a user
   user: {
     type: mongoose.Schema.Types.ObjectId,
-    ref: 'User', // This MUST match the name of your User model
+    ref: 'User',
   },
   items: [{
     productId: { type: mongoose.Schema.Types.ObjectId, ref: 'Product', required: true },
@@ -20,12 +19,17 @@ const OrderSchema = new mongoose.Schema({
     email: String,
     phone: String,
     address: String,
+    shippingFee: String,
+    isWithinLagos: String,
+    state: String,
+    lga: String,
   },
   totalAmount: { type: Number, required: true },
   paymentStatus: { type: String, default: 'pending' },
   orderStatus: { type: String, default: 'pending' },
 }, {
-  timestamps: true // A good practice to automatically add createdAt/updatedAt
+  timestamps: true 
 });
 
 export default mongoose.models.Order || mongoose.model('Order', OrderSchema);
+
