@@ -30,7 +30,7 @@ export default function PaymentStatusPage() {
       setMessage("Payment Failed. Please try again.");
       // toast.error("Payment failed. Please check your details and try again.");
     }
-  }, [searchParams, clearCart]); 
+  }, []); 
 
   const getIcon = () => {
     if (status === "successful") {
