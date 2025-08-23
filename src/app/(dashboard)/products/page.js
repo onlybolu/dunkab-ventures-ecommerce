@@ -9,6 +9,8 @@ import { FiSearch, FiFilter, FiChevronDown, FiChevronUp } from "react-icons/fi";
 
 const PRODUCTS_PER_PAGE = 12;
 
+
+
 export default function HomePage() {
   const [products, setProducts] = useState([]);
   const [category, setCategory] = useState("all");

@@ -17,6 +17,7 @@ export async function POST(req) {
     }
 
     // Check if OTP exists and matches
+    // Ensure otp is an object before accessing .code
     if (!user.otp || user.otp.code !== Number(otp)) {
       return new Response(JSON.stringify({ message: "Invalid OTP" }), {
         status: 400,
@@ -32,11 +33,14 @@ export async function POST(req) {
       });
     }
 
-    // Hash and update password
+    // Hash and update password, and REMOVE the entire otp field
     const hashedPassword = await hashPassword(newPassword);
     await User.findOneAndUpdate(
       { email: email },
-      { $set: { password: hashedPassword, otp: null } }
+      { 
+        $set: { password: hashedPassword },
+        $unset: { otp: 1 } // <-- This is the key change: remove the otp field
+      }
     );
 
     return new Response(JSON.stringify({ message: "Password reset successfully" }), {
