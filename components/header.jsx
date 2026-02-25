@@ -1,67 +1,85 @@
 "use client";
+
 import Link from "next/link";
 import Logo from "./Logo";
 import Navbar from "./nav";
 import { usePathname, useSearchParams, useRouter } from "next/navigation";
-import { useEffect, useState, useRef, useContext } from "react";
-import { useCart } from "../context/cartContext"; // Ensure this path is correct
-import { FavoriteContext, useFavorite } from "../context/FavoriteContext"; // --- IMPORTANT: Import useFavorite too ---
-import Profile from "./profile"; // Assuming this is another component
+import { useEffect, useMemo, useRef, useState } from "react";
+import { useCart } from "../context/cartContext";
+import { useFavorite } from "../context/FavoriteContext";
 
 const Header = () => {
   const pathname = usePathname();
-  const { cartItems, clearCartLocalOnly, user, loading, logout } = useCart();
-  // --- IMPORTANT CHANGE: Get logoutUserLocally from useFavorite too ---
-  const { favorite, logoutUserLocally: logoutFavoriteUserLocally } = useFavorite(); 
-  const router = useRouter();
   const searchParams = useSearchParams();
+  const router = useRouter();
+
+  const { cartItems, user, loading, logout } = useCart();
+  const { favorite, logoutUserLocally: logoutFavoriteUserLocally } = useFavorite();
+
   const [searchTerm, setSearchTerm] = useState(searchParams.get("q") || "");
   const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const [isSearchOpen, setIsSearchOpen] = useState(false);
-  const [categories, setCategories] = useState([]);
-  const [showCategories, setShowCategories] = useState(false);
-  const [showUserDetails, setShowUserDetails] = useState(false);
+  const [isMegaOpen, setIsMegaOpen] = useState(false);
   const [showLogoutPopup, setShowLogoutPopup] = useState(false);
   const [showProfilePopup, setShowProfilePopup] = useState(false);
-  const [newAddress, setNewAddress] = useState("");
-  const [isSaving, setIsSaving] = useState(false);
-  const [saveMessage, setSaveMessage] = useState("");
+  const [categories, setCategories] = useState([]);
+  const [isScrolled, setIsScrolled] = useState(false);
 
-  const searchInputRef = useRef(null);
-
-  useEffect(() => {
-    // This effect ideally react to 'user' changes for its own state
-    if (!loading) { // Only update address if user data has finished loading
-      if (user && user.address) {
-        setNewAddress(user.address);
-      } else if (user === null) {
-        setNewAddress("");
-      }
-    }
-  }, [user, loading]); // Added loading to dependency array
+  const megaRef = useRef(null);
 
   useEffect(() => {
     const fetchCategories = async () => {
       try {
         const res = await fetch("/api/categories");
         const data = await res.json();
-        if (res.ok) setCategories(data);
+        if (res.ok && Array.isArray(data)) setCategories(data);
       } catch (err) {
         console.error("Error fetching categories:", err);
       }
     };
+
     fetchCategories();
   }, []);
 
   useEffect(() => {
-    if (isSearchOpen && searchInputRef.current) {
-      searchInputRef.current.focus();
-    }
-  }, [isSearchOpen]);
+    const onScroll = () => {
+      setIsScrolled(window.scrollY > 18);
+    };
+
+    onScroll();
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, []);
+
+  useEffect(() => {
+    const onDocClick = (event) => {
+      if (!megaRef.current) return;
+      if (!megaRef.current.contains(event.target)) setIsMegaOpen(false);
+    };
+
+    if (isMegaOpen) document.addEventListener("mousedown", onDocClick);
+    return () => document.removeEventListener("mousedown", onDocClick);
+  }, [isMegaOpen]);
+
+  const totalItems = useMemo(
+    () => cartItems.reduce((acc, item) => acc + (item.quantity || 1), 0),
+    [cartItems]
+  );
+
+  const totalFavoriteItems = favorite.length;
+
+  const handleSearch = (e) => {
+    e.preventDefault();
+    const params = new URLSearchParams(searchParams.toString());
+
+    if (searchTerm.trim()) params.set("q", searchTerm.trim());
+    else params.delete("q");
+
+    router.push(`/products?${params.toString()}`);
+    setIsMenuOpen(false);
+  };
 
   const handleLogout = async () => {
     try {
-      // API call to clear HTTP-only cookie on the backend
       await fetch("/api/logout", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -69,432 +87,218 @@ const Header = () => {
       });
     } catch (err) {
       console.error("Error contacting server for logout:", err);
-      // Even if the API call fails, proceed with local logout for immediate UX
     }
 
-    // This immediately clears the user and cart states in the frontend context,
-    // ensuring the UI updates without delay.
-    logout(); // Call logout from CartContext
-    logoutFavoriteUserLocally(); // --- NEW: Call logout from FavoriteContext ---
-
-
-
-    sessionStorage.removeItem("currentPath"); // Keep this if 'currentPath' needs independent clearing
-    setShowLogoutPopup(true);
+    logout();
+    logoutFavoriteUserLocally();
+    sessionStorage.removeItem("currentPath");
     setShowProfilePopup(false);
+    setShowLogoutPopup(true);
     router.push("/");
   };
 
-  const handleSearch = (e) => {
-    e.preventDefault();
-    const params = new URLSearchParams(searchParams.toString());
-    if (searchTerm) {
-      params.set("q", searchTerm);
-    } else {
-      params.delete("q");
-    }
-    router.push(`/products?${params.toString()}`);
-    setIsMenuOpen(false);
-    setIsSearchOpen(false);
-    setSearchTerm("");
-  };
-
-  const handleSaveAddress = async () => {
-    if (!newAddress.trim()) {
-      setSaveMessage("Please enter a valid address.");
-      return;
-    }
-    // --- IMPORTANT: Ensure user object has finished loading before attempting to save address ---
-    if (loading || !user || !user.email) {
-      setSaveMessage("Please log in to save your address.");
-      return;
-    }
-
-    setIsSaving(true);
-    try {
-      const res = await fetch("/api/update-address", {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        // --- Ensure user._id is sent if your backend identifies by ID ---
-        body: JSON.stringify({ email: user.email, address: newAddress }),
-      });
-      const data = await res.json();
-      if (res.ok) {
-        setSaveMessage("Address updated successfully!");
-        // --- Consider refreshing user data in CartContext after successful address update ---
-        // This might involve refetching the session or updating the user object in session storage
-        // and triggering a CartContext update (e.g., through a function provided by CartContext).
-        // For now, it updates the message but the `user.address` in context won't update automatically.
-      } else {
-        setSaveMessage(data.message || "Failed to update address.");
-      }
-    } catch {
-      setSaveMessage("Error saving address.");
-    } finally {
-      setIsSaving(false);
-    }
-  };
-
-  const handleCategoriesClick = () => {
-    setShowCategories(true);
-    setShowUserDetails(false);
-  };
-
-  const handleMyAccountClick = () => {
-    setShowProfilePopup(true);
-    setIsMenuOpen(false);
-  };
-
-  const handleBackToMenu = () => {
-    setShowUserDetails(false);
-    setShowCategories(false);
-  };
-
-  const totalItems = cartItems.reduce((acc, item) => acc + (item.quantity || 1), 0);
-  const totalFavoriteItems = favorite.length;
-
-  const toggleMobileSearch = () => {
-    setIsSearchOpen(!isSearchOpen);
-  };
+  const desktopLinks = Navbar.filter((item) => item.name !== "Categories");
 
   return (
-    <header className="sticky top-0 z-50">
+    <header className={`sticky top-0 z-50 transition-all duration-300 ${isScrolled ? "shadow-md" : "shadow-sm"}`}>
       {showLogoutPopup && <LogoutPopup onClose={() => setShowLogoutPopup(false)} />}
       {showProfilePopup && (
-        <ProfilePopup
-          user={user}
-          onClose={() => setShowProfilePopup(false)}
-          onLogout={handleLogout}
-          newAddress={newAddress}
-          setNewAddress={setNewAddress}
-          handleSaveAddress={handleSaveAddress}
-          isSaving={isSaving}
-          saveMessage={saveMessage}
-          router={router}
-        />
+        <ProfilePopup user={user} onClose={() => setShowProfilePopup(false)} onLogout={handleLogout} router={router} />
       )}
 
-      <div className="bg-white shadow-md px-4 py-3 flex items-center justify-between">
-        <div className="flex items-center gap-4">
-          <div className="md:hidden flex items-center">
+      <div className="border-b border-slate-200 bg-white/95 backdrop-blur-md">
+        <div className="mx-auto flex max-w-7xl items-center justify-between gap-4 px-4 py-3 sm:px-6 lg:px-8">
+          <div className="flex items-center gap-3">
             <button
-              onClick={() => setIsMenuOpen(!isMenuOpen)}
-              className="focus:outline-none p-2 rounded-md hover:bg-gray-100 transition-colors"
-              aria-label="Toggle mobile menu"
+              onClick={() => setIsMenuOpen((prev) => !prev)}
+              className="rounded-md p-2 text-slate-700 hover:bg-slate-100 md:hidden"
+              aria-label="Toggle menu"
             >
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                width="25"
-                height="25"
-                fill="currentColor"
-                className="bi bi-list"
-                viewBox="0 0 16 16"
-              >
-                <path
-                  fillRule="evenodd"
-                  d="M2.5 12a.5.5 0 0 1 .5-.5h10a.5.5 0 0 1 0 1H3a.5.5 0 0 1-.5-.5m0-4a.5.5 0 0 1 .5-.5h10a.5.5 0 0 1 0 1H3a.5.5 0 0 1-.5-.5m0-4a.5.5 0 0 1 .5-.5h10a.5.5 0 0 1 0 1H3a.5.5 0 0 1-.5-.5"
-                />
+              <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="currentColor" viewBox="0 0 16 16">
+                <path d="M2.5 12a.5.5 0 0 1 .5-.5h10a.5.5 0 0 1 0 1H3a.5.5 0 0 1-.5-.5m0-4a.5.5 0 0 1 .5-.5h10a.5.5 0 0 1 0 1H3a.5.5 0 0 1-.5-.5m0-4a.5.5 0 0 1 .5-.5h10a.5.5 0 0 1 0 1H3a.5.5 0 0 1-.5-.5" />
               </svg>
             </button>
-          </div>
-          <Link href="/" className="flex-shrink-0">
-            <Logo width={"w-15"} height={"h-20"} fontSize={"text-2xl"} />
-          </Link>
 
-          <form onSubmit={handleSearch} className="hidden md:flex flex-grow max-w-md ml-8">
-            <input
-              type="text"
-              placeholder="Search products..."
-              className="w-full border border-gray-300 rounded-l-md px-4 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all duration-200"
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              aria-label="Search products"
-            />
-            <button
-              type="submit"
-              className="bg-blue-600 text-white px-4 py-2 rounded-r-md hover:bg-blue-700 transition-colors duration-200 focus:outline-none focus:ring-2 focus:ring-blue-500"
-              aria-label="Submit search"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" className="bi bi-search" viewBox="0 0 16 16">
-                <path d="M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398h-.001q.044.06.085.12l3.96 3.96a.5.5 0 0 0 .707-.707l-3.96-3.96a.5.5 0 0 0-.12-.085zM12 6.5a5.5 5.5 0 1 1-11 0 5.5 5.5 0 0 1 11 0" />
-              </svg>
-            </button>
-          </form>
-        </div>
-
-        <div className="hidden md:flex items-center gap-6">
-          <nav className="flex items-center gap-4">
-            {Navbar.map((item) => (
-              <Link
-                key={item.id}
-                href={item.link}
-                className={`${pathname === item.link ? "text-blue-600 font-semibold" : "text-gray-700"} hover:text-blue-600 px-3 py-2 rounded-md transition-colors flex flex-col items-center justify-center`}
-              >
-                {item.icon}
-                <span className="text-xs mt-1">{item.name}</span>
-              </Link>
-            ))}
-          </nav>
-
-          <div className="flex items-center gap-4">
-            {/* Desktop Wishlist Icon */}
-            <Link href="/wishlists" className="relative flex flex-col items-center justify-center p-2 rounded-full hover:bg-gray-100 transition-colors" aria-label="View wishlist">
-              <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" fill="currentColor" className="bi bi-heart text-gray-700" viewBox="0 0 16 16">
-                <path d="m8 2.748-.717-.737C5.6.281 2.514.878 1.4 3.053c-.523 1.023-.641 2.5.314 4.385.92 1.815 2.834 3.989 6.286 6.357 3.452-2.368 5.365-4.542 6.286-6.357.955-1.886.838-3.362.314-4.385C13.486.878 10.4.28 8.717 2.01zM8 15C-7.333 4.868 3.279-3.04 7.824 1.143q.09.083.176.171a3 3 0 0 1 .176-.17C12.72-3.042 23.333 4.867 8 15"/>
-              </svg>
-              {/* {totalFavoriteItems > 0 && (
-                <span className="absolute -top-1 -right-1 bg-red-600 text-white text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center">
-                  {totalFavoriteItems}
-                </span>
-              )} */}
-              <span className="text-gray-700 text-xs pt-2">Wishlist</span>
+            <Link href="/" className="flex-shrink-0">
+              <Logo width={"w-11"} height={"h-11"} fontSize={"text-2xl"} />
             </Link>
-            {/* Desktop Cart Icon - Commented out, but keeping for reference */}
-            {/* <Link href="/productcart" className="relative p-2 rounded-full hover:bg-gray-100 transition-colors" aria-label="View shopping cart">
-              <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" fill="currentColor" className="bi bi-cart4" viewBox="0 0 16 16">
-                <path d="M0 2.5A.5.5 0 0 1 .5 2H2a.5.5 0 0 1 .485.379L2.89 4H14.5a.5.5 0 0 1 .485.621l-1.5 6A.5.5 0 0 1 13 11H4a.5.5 0 0 1-.485-.379L1.61 3H.5a.5.5 0 0 1-.5-.5M3.14 5l.5 2H5V5zM6 5v2h2V5zm3 0v2h2V5zm3 0v2h1.36l.5-2zm1.11 3H12v2h.61zM11 8H9v2h2zM8 8H6v2h2zM5 8H3.89l.5 2H5zm0 5a1 1 0 1 0 0 2 1 1 0 0 0 0-2m-2 1a2 2 0 1 1 4 0 2 2 0 0 1-4 0m9-1a1 1 0 1 0 0 2 1 1 0 0 0 0-2m-2 1a2 2 0 1 1 4 0 2 2 0 0 1-4 0" />
-              </svg>
-              {totalItems > 0 && (
-                <span className="absolute -top-1 -right-1 bg-red-600 text-white text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center">
-                  {totalItems}
-                </span>
-              )}
-            </Link> */}
-            <Profile hidden={true} md={true} display={"block"} color={"text-gray-700"}/>
-            <button
-              onClick={() => setShowProfilePopup(true)}
-              className="p-2 rounded-full hover:bg-gray-100 transition-colors flex flex-col items-center justify-center"
-              aria-label="User profile and account settings"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" fill="currentColor" className="bi bi-person text-gray-700" viewBox="0 0 16 16">
-                <path d="M8 8a3 3 0 1 0 0-6 3 3 0 0 0 0 6m2-3a2 2 0 1 1-4 0 2 2 0 0 1 4 0m4 8c0 1-1 1-1 1H3s-1 0-1-1 1-4 6-4 6 3 6 4m-1-.004c-.001-.246-.154-.986-.832-1.664C11.516 10.68 10.289 10 8 10s-3.516.68-4.168 1.332c-.678.678-.83 1.418-.832 1.664z" />
-              </svg>
-              {/* --- IMPORTANT CHANGE: Conditional display for desktop user status --- */}
-              {loading ? (
-                <span className="text-xs mt-1 text-gray-400 animate-pulse">Loading...</span>
-              ) : user ? (
-                <span className="text-xs mt-1 text-gray-700">Account</span> // Or {user.name} if you want to show name directly
-              ) : (
-                <span className="text-xs mt-1 text-gray-700">Login</span>
-              )}
-            </button>
           </div>
-        </div>
 
-        <div className="md:hidden flex items-center gap-3">
-          <button
-            onClick={toggleMobileSearch}
-            className="p-2 rounded-full hover:bg-gray-100 transition-colors"
-            aria-label="Search"
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" fill="currentColor" className="bi bi-search" viewBox="0 0 16 16">
-              <path d="M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398h-.001q.044.06.085.12l3.96 3.96a.5.5 0 0 0 .707-.707l-3.96-3.96a.5.5 0 0 0-.12-.085zM12 6.5a5.5 5.5 0 1 1-11 0 5.5 5.5 0 0 1 11 0" />
-            </svg>
-          </button>
-          <Link href="/productcart" className="relative p-2 rounded-full hover:bg-gray-100 transition-colors" aria-label="View shopping cart">
-            <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" fill="currentColor" className="bi bi-cart4" viewBox="0 0 16 16">
-              <path d="M0 2.5A.5.5 0 0 1 .5 2H2a.5.5 0 0 1 .485.379L2.89 4H14.5a.5.5 0 0 1 .485.621l-1.5 6A.5.5 0 0 1 13 11H4a.5.5 0 0 1-.485-.379L1.61 3H.5a.5.5 0 0 1-.5-.5M3.14 5l.5 2H5V5zM6 5v2h2V5zm3 0v2h2V5zm3 0v2h1.36l.5-2zm1.11 3H12v2h.61zM11 8H9v2h2zM8 8H6v2h2zM5 8H3.89l.5 2H5zm0 5a1 1 0 1 0 0 2 1 1 0 0 0 0-2m-2 1a2 2 0 1 1 4 0 2 2 0 0 1-4 0m9-1a1 1 0 1 0 0 2 1 1 0 0 0 0-2m-2 1a2 2 0 1 1 4 0 2 2 0 0 1-4 0" />
-            </svg>
-            {totalItems > 0 && (
-              <span className="absolute -top-1 -right-1 bg-red-600 text-white text-xs font-bold rounded-full h-5 w-5 flex items-center justify-center">
-                {totalItems}
-              </span>
-            )}
-          </Link>
-          <button
-            onClick={() => setShowProfilePopup(true)}
-            className="p-2 rounded-full hover:bg-gray-100 transition-colors"
-            aria-label="User profile and account settings"
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" fill="currentColor" className="bi bi-person" viewBox="0 0 16 16">
-              <path d="M8 8a3 3 0 1 0 0-6 3 3 0 0 0 0 6m2-3a2 2 0 1 1-4 0 2 2 0 0 1 4 0m4 8c0 1-1 1-1 1H3s-1 0-1-1 1-4 6-4 6 3 6 4m-1-.004c-.001-.246-.154-.986-.832-1.664C11.516 10.68 10.289 10 8 10s-3.516.68-4.168 1.332c-.678.678-.83 1.418-.832 1.664z" />
-            </svg>
-          </button>
-        </div>
-      </div>
-
-      <div
-        className={`fixed inset-x-0 top-0 pt-4 px-4 pb-3 bg-white shadow-md z-[60] transform transition-transform duration-300 ${isSearchOpen ? "translate-y-0" : "-translate-y-full"}`}
-      >
-        <div className="flex items-center justify-between">
-          <form onSubmit={handleSearch} className="flex-grow">
+          <form onSubmit={handleSearch} className="hidden w-full max-w-xl md:block">
             <div className="relative">
               <input
                 type="text"
-                placeholder="Search products..."
-                className="w-full border border-gray-300 rounded-md pr-12 pl-4 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all duration-200"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                aria-label="Search products"
-                ref={searchInputRef}
+                placeholder="Search coolers, bags, kitchen essentials..."
+                className="w-full rounded-full border border-slate-300 bg-white px-5 py-2.5 pr-14 text-sm text-slate-800 outline-none transition focus:border-sky-500 focus:ring-2 focus:ring-sky-100"
               />
               <button
                 type="submit"
-                className="absolute right-0 top-0 h-full w-12 flex items-center justify-center text-gray-500 hover:text-gray-700"
-                aria-label="Submit search"
+                className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full bg-slate-900 px-4 py-1.5 text-xs font-semibold uppercase tracking-[0.07em] text-white hover:bg-sky-700"
               >
-                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" className="bi bi-search" viewBox="0 0 16 16">
-                  <path d="M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398h-.001q.044.06.085.12l3.96 3.96a.5.5 0 0 0 .707-.707l-3.96-3.96a.5.5 0 0 0-.12-.085zM12 6.5a5.5 5.5 0 1 1-11 0 5.5 5.5 0 0 1 11 0" />
-                </svg>
+                Search
               </button>
             </div>
           </form>
-          <button
-            onClick={toggleMobileSearch}
-            className="ml-3 text-gray-500 hover:text-gray-800 p-2 rounded-md transition-colors"
-            aria-label="Close search"
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" fill="currentColor" className="bi bi-x" viewBox="0 0 16 16">
-              <path d="M4.646 4.646a.5.5 0 0 1 .708 0L8 7.293l2.646-2.647a.5.5 0 0 1 .708.708L8.707 8l2.647 2.646a.5.5 0 0 1-.708.708L8 8.707l-2.646 2.647a.5.5 0 0 1-.708-.708L7.293 8 4.646 5.354a.5.5 0 0 1 0-.708z" />
-            </svg>
-          </button>
+
+          <div className="flex items-center gap-2 sm:gap-3">
+            <Link href="/wishlists" className="relative rounded-full p-2 text-slate-700 hover:bg-slate-100" aria-label="Wishlist">
+              <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" fill="currentColor" viewBox="0 0 16 16">
+                <path d="m8 2.748-.717-.737C5.6.281 2.514.878 1.4 3.053c-.523 1.023-.641 2.5.314 4.385.92 1.815 2.834 3.989 6.286 6.357 3.452-2.368 5.365-4.542 6.286-6.357.955-1.886.838-3.362.314-4.385C13.486.878 10.4.28 8.717 2.01zM8 15C-7.333 4.868 3.279-3.04 7.824 1.143q.09.083.176.171a3 3 0 0 1 .176-.17C12.72-3.042 23.333 4.867 8 15" />
+              </svg>
+              {totalFavoriteItems > 0 && (
+                <span className="absolute -right-1 -top-1 rounded-full bg-rose-600 px-1.5 py-0.5 text-[10px] font-bold text-white">{totalFavoriteItems}</span>
+              )}
+            </Link>
+
+            <Link href="/productcart" className="relative rounded-full p-2 text-slate-700 hover:bg-slate-100" aria-label="Cart">
+              <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" fill="currentColor" viewBox="0 0 16 16">
+                <path d="M0 2.5A.5.5 0 0 1 .5 2H2a.5.5 0 0 1 .485.379L2.89 4H14.5a.5.5 0 0 1 .485.621l-1.5 6A.5.5 0 0 1 13 11H4a.5.5 0 0 1-.485-.379L1.61 3H.5a.5.5 0 0 1-.5-.5" />
+                <path d="M5 13a2 2 0 1 0 0 4 2 2 0 0 0 0-4m6 0a2 2 0 1 0 0 4 2 2 0 0 0 0-4" transform="scale(.8) translate(1 -5)" />
+              </svg>
+              {totalItems > 0 && (
+                <span className="absolute -right-1 -top-1 rounded-full bg-slate-900 px-1.5 py-0.5 text-[10px] font-bold text-white">{totalItems}</span>
+              )}
+            </Link>
+
+            <button
+              onClick={() => setShowProfilePopup(true)}
+              className="rounded-full p-2 text-slate-700 hover:bg-slate-100"
+              aria-label="Account"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" fill="currentColor" viewBox="0 0 16 16">
+                <path d="M8 8a3 3 0 1 0 0-6 3 3 0 0 0 0 6m-5 6s-1 0-1-1 1-4 6-4 6 3 6 4-1 1-1 1z" />
+              </svg>
+            </button>
+          </div>
         </div>
       </div>
 
-      <div className={`fixed inset-0 bg-black/50 transition-opacity duration-300 ${isMenuOpen ? "opacity-100" : "opacity-0 pointer-events-none"}`}
-           onClick={() => setIsMenuOpen(false)}>
-        <div className={`fixed top-0 left-0 h-full w-72 bg-white shadow-2xl transform transition-transform duration-300 ${isMenuOpen ? "translate-x-0" : "-translate-x-full"}`}
-             onClick={(e) => e.stopPropagation()}>
-          
-          <div className="flex items-center justify-between px-4 py-4 border-b border-gray-200">
-            {showUserDetails || showCategories ? (
-              <button onClick={handleBackToMenu} className="flex items-center gap-1 text-gray-700 hover:text-blue-600 font-medium transition-colors">
-                <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" className="bi bi-arrow-left" viewBox="0 0 16 16">
-                  <path fillRule="evenodd" d="M15 8a.5.5 0 0 0-.5-.5H2.707l3.147-3.146a.5.5 0 1 0-.708-.708l-4 4a.5.5 0 0 0 0 .708l4 4a.5.5 0 0 0 .708-.708L2.707 8.5H14.5A.5.5 0 0 0 15 8"/>
-                </svg>
-                Back
-              </button>
-            ) : (
-              <div className="flex w-full items-center justify-between">
-                      <Logo width={"w-15"} height={"h-20"} />
-                      <button
-                        onClick={() => setIsMenuOpen(false)}
-                        className="text-gray-700 hover:text-blue-600 p-2 rounded-md transition-colors"
-                        aria-label="Close mobile menu"
-                      >
-                        <svg
-                          xmlns="http://www.w3.org/2000/svg"
-                          width="30"
-                          height="30"
-                          fill="currentColor"
-                          className="bi bi-x"
-                          viewBox="0 0 16 16"
-                        >
-                          <path
-                            fillRule="evenodd"
-                            d="M4.646 4.646a.5.5 0 0 1 .708 0L8 7.293l2.646-2.647a.5.5 0 0 1 .708.708L8.707 8l2.647 2.646a.5.5 0 0 1-.708.708L8 8.707l-2.646 2.647a.5.5 0 0 1-.708-.708L7.293 8 4.646 5.354a.5.5 0 0 1 0-.708z"
-                          />
-                        </svg>
-                      </button>
-                    </div>
-            )}
-          </div>
-          
-          <div className="flex flex-col flex-grow overflow-y-auto pb-4">
+      <div className="hidden border-b border-slate-200 bg-white md:block" ref={megaRef}>
+        <div className="mx-auto flex max-w-7xl items-center justify-between px-4 py-2 sm:px-6 lg:px-8">
+          <nav className="flex items-center gap-2">
+            {desktopLinks.map((item) => (
+              <Link
+                key={item.id}
+                href={item.link}
+                className={`rounded-full px-4 py-2 text-sm font-semibold transition ${pathname === item.link ? "bg-slate-900 text-white" : "text-slate-700 hover:bg-slate-100"}`}
+              >
+                {item.name}
+              </Link>
+            ))}
+
             <button
-              onClick={handleMyAccountClick}
-              className="flex items-center justify-between p-4 border-y border-gray-200 mt-auto text-left w-full hover:bg-gray-50 transition-colors"
+              onClick={() => setIsMegaOpen((prev) => !prev)}
+              className={`rounded-full px-4 py-2 text-sm font-semibold transition ${isMegaOpen ? "bg-sky-700 text-white" : "text-slate-700 hover:bg-slate-100"}`}
             >
-              <div className="text-gray-700 flex items-center gap-2">
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  width="22"
-                  height="22"
-                  fill="currentColor"
-                  className="bi bi-person"
-                  viewBox="0 0 16 16"
-                >
-                  <path d="M8 8a3 3 0 1 0 0-6 3 3 0 0 0 0 6m2-3a2 2 0 1 1-4 0 2 2 0 0 1 4 0m4 8c0 1-1 1-1 1H3s-1 0-1-1 1-4 6-4 6 3 6 4m-1-.004c-.001-.246-.154-.986-.832-1.664C11.516 10.68 10.289 10 8 10s-3.516.68-4.168 1.332c-.678.678-.83 1.418-.832 1.664z" />
-                </svg>
-                <div className="flex items-center gap-1">
-                  <p>Account:</p>
-                  <span className="text-sm text-gray-500">
-                    {/* --- IMPORTANT CHANGE: Conditional display for mobile user email --- */}
-                    {loading ? (
-                      <span className="text-gray-400 animate-pulse">Loading...</span>
-                    ) : user?.email || "Guest"}
-                  </span>
+              Categories
+            </button>
+          </nav>
+
+          <p className="text-xs font-medium uppercase tracking-[0.14em] text-slate-500">
+            {loading ? "Loading account" : user ? `Welcome, ${user.name || "Customer"}` : "Guest mode"}
+          </p>
+        </div>
+
+        {isMegaOpen && (
+          <div className="border-t border-slate-200 bg-gradient-to-b from-white to-slate-50">
+            <div className="mx-auto grid max-w-7xl grid-cols-1 gap-8 px-4 py-6 sm:px-6 lg:grid-cols-[2fr_1fr] lg:px-8">
+              <div>
+                <p className="mb-3 text-xs font-semibold uppercase tracking-[0.14em] text-sky-700">Shop by category</p>
+                <div className="grid grid-cols-2 gap-3 lg:grid-cols-3">
+                  {(categories.length ? categories : ["Coolers", "Kitchen Sets", "Souvenirs", "Bags"]).map((category) => (
+                    <Link
+                      key={category}
+                      href={`/products?category=${encodeURIComponent(category)}`}
+                      onClick={() => setIsMegaOpen(false)}
+                      className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-semibold text-slate-800 transition hover:-translate-y-0.5 hover:border-sky-300 hover:shadow-sm"
+                    >
+                      {category.charAt(0).toUpperCase() + category.slice(1)}
+                    </Link>
+                  ))}
                 </div>
               </div>
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                width="20"
-                height="20"
-                fill="gray"
-                className="bi bi-chevron-right"
-                viewBox="0 0 16 16"
-              >
-                <path fillRule="evenodd" d="M4.646 1.646a.5.5 0 0 1 .708 0l6 6a.5.5 0 0 1 0 .708l-6 6a.5.5 0 0 1-.708-.708L10.293 8 4.646 2.354a.5.5 0 0 1 0-.708"/>
-              </svg>
+
+              <div className="rounded-2xl border border-slate-200 bg-slate-900 p-5 text-white">
+                <p className="text-xs uppercase tracking-[0.14em] text-sky-300">Hot Collection</p>
+                <h3 className="mt-2 text-xl font-bold">Adventure Cooler Series</h3>
+                <p className="mt-2 text-sm text-slate-300">Built for long ice retention, travel durability, and daily reliability.</p>
+                <Link
+                  href="/products"
+                  onClick={() => setIsMegaOpen(false)}
+                  className="mt-4 inline-block rounded-full bg-sky-500 px-4 py-2 text-xs font-semibold uppercase tracking-[0.08em] text-slate-900 hover:bg-sky-400"
+                >
+                  Shop now
+                </Link>
+              </div>
+            </div>
+          </div>
+        )}
+      </div>
+
+      <div className={`fixed inset-0 z-[80] bg-black/40 transition ${isMenuOpen ? "opacity-100" : "pointer-events-none opacity-0"}`} onClick={() => setIsMenuOpen(false)}>
+        <aside
+          className={`h-full w-80 bg-white shadow-2xl transition-transform duration-300 ${isMenuOpen ? "translate-x-0" : "-translate-x-full"}`}
+          onClick={(e) => e.stopPropagation()}
+        >
+          <div className="flex items-center justify-between border-b border-slate-200 px-4 py-4">
+            <Logo width={"w-10"} height={"h-10"} fontSize={"text-xl"} />
+            <button onClick={() => setIsMenuOpen(false)} className="rounded-md p-2 text-slate-700 hover:bg-slate-100" aria-label="Close menu">
+              ✕
             </button>
+          </div>
 
-            <ul className="flex flex-col">
-              {Navbar.map((item) => (
-                <li key={item.id} className="border-b border-gray-100 last:border-b-0">
-                  {item.name === "Categories" ? (
-                    <button onClick={handleCategoriesClick}
-                      className="flex items-center gap-2 w-full px-4 py-3 text-gray-700 hover:bg-gray-50 hover:text-blue-600 transition-colors text-left">
-                      {item.icon} {item.name}
-                      <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" className="bi bi-chevron-right ml-auto" viewBox="0 0 16 16">
-                        <path fillRule="evenodd" d="M4.646 1.646a.5.5 0 0 1 .708 0l6 6a.5.5 0 0 1 0 .708l-6 6a.5.5 0 0 1-.708-.708L10.293 8 4.646 2.354a.5.5 0 0 1 0-.708"/>
-                      </svg>
-                    </button>
-                  ) : (
-                    <Link href={item.link}
-                      className={`flex items-center gap-2 w-full px-4 py-3 ${pathname === item.link ? "text-blue-600 font-semibold bg-blue-50" : "text-gray-700"} hover:bg-gray-50 hover:text-blue-600 transition-colors`}
-                      onClick={() => setIsMenuOpen(false)}>
-                      {item.icon} {item.name}
-                    </Link>
-                  )}
-                </li>
+          <div className="space-y-5 px-4 py-4">
+            <form onSubmit={handleSearch}>
+              <input
+                type="text"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                placeholder="Search products"
+                className="w-full rounded-xl border border-slate-300 px-4 py-2.5 text-sm outline-none focus:border-sky-500 focus:ring-2 focus:ring-sky-100"
+              />
+            </form>
+
+            <nav className="space-y-1">
+              {desktopLinks.map((item) => (
+                <Link
+                  key={item.id}
+                  href={item.link}
+                  onClick={() => setIsMenuOpen(false)}
+                  className={`block rounded-xl px-3 py-2.5 text-sm font-semibold ${pathname === item.link ? "bg-slate-900 text-white" : "text-slate-700 hover:bg-slate-100"}`}
+                >
+                  {item.name}
+                </Link>
               ))}
-            </ul>
+            </nav>
 
-            <div className="px-4 py-4 flex flex-col gap-4 border-t border-gray-200 mt-auto">
-              <Link
-                href="/productcart"
-                className="flex items-center justify-between text-gray-700 hover:bg-gray-50 hover:text-blue-600 p-2 rounded-md transition-colors"
-                onClick={() => setIsMenuOpen(false)}
-              >
-                <div className="flex items-center gap-2">
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    width="22"
-                    height="22"
-                    fill="currentColor"
-                    className="text-blue-600"
-                    viewBox="0 0 16 16"
+            <div>
+              <p className="mb-2 text-xs font-semibold uppercase tracking-[0.14em] text-slate-500">Categories</p>
+              <div className="grid grid-cols-2 gap-2">
+                {(categories.length ? categories : ["Coolers", "Kitchen", "Bags", "Souvenirs"]).slice(0, 8).map((category) => (
+                  <Link
+                    key={category}
+                    href={`/products?category=${encodeURIComponent(category)}`}
+                    onClick={() => setIsMenuOpen(false)}
+                    className="rounded-lg border border-slate-200 px-3 py-2 text-xs font-semibold text-slate-700 hover:border-sky-300 hover:bg-sky-50"
                   >
-                    <path d="M0 2.5A.5.5 0 0 1 .5 2H2a.5.5 0 0 1 .485.379L2.89 4H14.5a.5.5 0 0 1 .485.621l-1.5 6A.5.5 0 0 1 13 11H4a.5.5 0 0 1-.485-.379L1.61 3H.5a.5.5 0 0 1-.5-.5M3.14 5l.5 2H5V5zM6 5v2h2V5zm3 0v2h2V5zm3 0v2h1.36l.5-2zm1.11 3H12v2h.61zM11 8H9v2h2zM8 8H6v2h2zM5 8H3.89l.5 2H5zm0 5a1 1 0 1 0 0 2 1 1 0 0 0 0-2m-2 1a2 2 0 1 1 4 0 2 2 0 0 1-4 0m9-1a1 1 0 1 0 0 2 1 1 0 0 0 0-2m-2 1a2 2 0 1 1 4 0 2 2 0 0 1-4 0" />
-                  </svg>
-                  <p>Cart</p>
-                </div>
-                <p className="text-gray-500 text-sm font-medium">{totalItems} items</p>
+                    {category}
+                  </Link>
+                ))}
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-2 border-t border-slate-200 pt-4">
+              <Link href="/wishlists" onClick={() => setIsMenuOpen(false)} className="rounded-lg bg-slate-100 px-3 py-2 text-center text-xs font-semibold text-slate-700">
+                Wishlist ({totalFavoriteItems})
               </Link>
-            
-              <Link
-                href={"/wishlists"}
-                className="flex items-center justify-between text-gray-700 hover:bg-gray-50 hover:text-blue-600 p-2 rounded-md transition-colors"
-                onClick={() => setIsMenuOpen(false)}
-              >
-                <div className="flex items-center gap-2">
-                  <svg
-                    xmlns="http://www.w3.org/2000/svg"
-                    width="22"
-                    height="22"
-                    fill="currentColor"
-                    className="text-red-500"
-                    viewBox="0 0 16 16"
-                  >
-                    <path d="M8 2.748-.717-.737C5.6.281 2.514.878 1.4 3.053c-.523 1.023-.641 2.5.314 4.385.92 1.815 2.834 3.989 6.286 6.357 3.452-2.368 5.365-4.542 6.286-6.357.955-1.886.838-3.362.314-4.385C13.486.878 10.4.28 8.717 2.01zM8 15C-7.333 4.868 3.279-3.04 7.824 1.143q.09.083.176.171a3 3 0 0 1 .176-.17C12.72-3.042 23.333 4.867 8 15"/>
-                  </svg>
-                  <p>Wishlist</p>
-                </div>
-                {/* <p className="text-gray-500 text-sm font-medium">{totalFavoriteItems} items</p> */}
+              <Link href="/productcart" onClick={() => setIsMenuOpen(false)} className="rounded-lg bg-slate-900 px-3 py-2 text-center text-xs font-semibold text-white">
+                Cart ({totalItems})
               </Link>
             </div>
           </div>
-        </div>
+        </aside>
       </div>
     </header>
   );
@@ -504,32 +308,16 @@ export default Header;
 
 const LogoutPopup = ({ onClose }) => {
   useEffect(() => {
-    const timer = setTimeout(() => {
-      onClose();
-    }, 3000);
+    const timer = setTimeout(onClose, 2500);
     return () => clearTimeout(timer);
   }, [onClose]);
 
   return (
-    <div className="fixed inset-0 bg-black/70 bg-opacity-70 flex items-center justify-center z-[1000]">
-      <div className="bg-white p-8 rounded-lg shadow-xl text-center max-w-sm w-full border border-gray-200 relative overflow-hidden">
-        <img
-          src="https://placehold.co/400x200/e0e0e0/555555?text=Thank+You+for+Shopping!"
-          alt="Thank You Ad"
-          className="w-full h-32 object-cover rounded-t-lg mb-4"
-          onError={(e) => { e.target.onerror = null; e.target.src="https://placehold.co/400x200/e0e0e0/555555?text=Image+Failed+to+Load"; }}
-        />
-
-        <h2 className="text-2xl font-bold text-gray-800 mb-2">
-          Logout Successful!
-        </h2>
-        <p className="text-base text-gray-700 mb-6">
-          Thank you for patronizing Dunkab Ventures. We hope to see you again soon! 👋
-        </p>
-        <button
-          onClick={onClose}
-          className="bg-blue-600 text-white font-semibold py-2 px-6 rounded-md hover:bg-blue-700 transition-colors duration-200 shadow-md focus:outline-none focus:ring-2 focus:ring-blue-300"
-        >
+    <div className="fixed inset-0 z-[120] flex items-center justify-center bg-black/60">
+      <div className="mx-4 w-full max-w-sm rounded-2xl border border-slate-200 bg-white p-6 text-center shadow-xl">
+        <h2 className="text-xl font-bold text-slate-900">Logged out</h2>
+        <p className="mt-2 text-sm text-slate-600">Thanks for visiting Dunkab Ventures.</p>
+        <button onClick={onClose} className="mt-4 rounded-full bg-slate-900 px-4 py-2 text-xs font-semibold uppercase tracking-[0.08em] text-white">
           Close
         </button>
       </div>
@@ -537,65 +325,46 @@ const LogoutPopup = ({ onClose }) => {
   );
 };
 
-const ProfilePopup = ({ user, onClose, onLogout, newAddress, setNewAddress, handleSaveAddress, isSaving, saveMessage, router }) => {
+const ProfilePopup = ({ user, onClose, onLogout, router }) => {
   return (
-    <div className="fixed inset-0 bg-black/70 bg-opacity-70 flex items-center justify-center z-[1000]" onClick={onClose}>
-      <div className="bg-white p-6 rounded-lg shadow-xl max-w-md w-full mx-3 relative" onClick={(e) => e.stopPropagation()}>
-        <button onClick={onClose} className="absolute top-3 right-3 text-gray-500 hover:text-gray-800 p-1 rounded-full transition-colors" aria-label="Close profile popup">
-          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" fill="currentColor" className="bi bi-x-lg" viewBox="0 0 16 16">
-            <path d="M2.146 2.854a.5.5 0 1 1 .708-.708L8 7.293l5.146-5.147a.5.5 0 0 1 .708.708L8.707 8l5.147 5.146a.5.5 0 0 1-.708.708L8 8.707l-5.146 5.147a.5.5 0 0 1-.708-.708L7.293 8z"/>
-          </svg>
-        </button>
+    <div className="fixed inset-0 z-[120] flex items-center justify-center bg-black/60 px-4" onClick={onClose}>
+      <div className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-6 shadow-xl" onClick={(e) => e.stopPropagation()}>
+        <button onClick={onClose} className="float-right rounded-md px-2 py-1 text-slate-500 hover:bg-slate-100">✕</button>
 
         {user ? (
           <div>
-            <h2 className="text-2xl text-gray-800 mb-4">My Account</h2>
-            <div className="space-y-3 mb-6">
-              <p className="text-gray-700">Name: {user.name || 'N/A'}</p>
-              <p className="text-gray-700">Email: {user.email || 'N/A'}</p>
-              
-              {/* <h3 className="text-lg font-semibold text-gray-800 mt-4 mb-2">Delivery Address</h3>
-              <input 
-                type="text" 
-                placeholder="Enter your address"
-                className="w-full border border-gray-300 rounded-md px-3 py-2 focus:ring-2 focus:ring-blue-500 focus:border-blue-500 outline-none transition-all duration-200"
-                value={newAddress} 
-                onChange={(e) => setNewAddress(e.target.value)} 
-              />
-              <button 
-                onClick={handleSaveAddress}
-                className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition-colors duration-200 w-full font-semibold"
-                disabled={isSaving}
-              >
-                {isSaving ? "Saving..." : "Save Address"}
-              </button>
-              {saveMessage && (
-                <p className={`mt-2 text-sm ${saveMessage.includes("success") ? "text-green-600" : "text-red-600"}`}>
-                  {saveMessage}
-                </p>
-              )} */}
+            <h2 className="text-2xl font-bold text-slate-900">My Account</h2>
+            <div className="mt-4 space-y-2 text-sm text-slate-700">
+              <p><span className="font-semibold">Name:</span> {user.name || "N/A"}</p>
+              <p><span className="font-semibold">Email:</span> {user.email || "N/A"}</p>
             </div>
             <button
               onClick={onLogout}
-              className="w-full border border-gray-500 text-gray-700 py-2 rounded-md hover:bg-red-600 transition-colors duration-200 font-semibold"
+              className="mt-6 w-full rounded-full border border-red-200 px-4 py-2.5 text-sm font-semibold text-red-600 hover:bg-red-50"
             >
               Logout
             </button>
           </div>
         ) : (
           <div className="text-center">
-            <h2 className="text-2xl font-bold text-gray-800 mb-4">Welcome to Dunkab Ventures!</h2>
-            <p className="text-gray-700 mb-6">Login or sign up to manage your orders, wishlist, and more.</p>
-            <div className="flex flex-col gap-3">
-              <button 
-                onClick={() => { onClose(); router.push("/authentication"); }}
-                className="bg-blue-600 text-white py-2 px-6 rounded-md hover:bg-blue-700 transition-colors duration-200 font-semibold"
+            <h2 className="text-2xl font-bold text-slate-900">Welcome to Dunkab</h2>
+            <p className="mt-2 text-sm text-slate-600">Login or create an account to manage orders and wishlist.</p>
+            <div className="mt-5 grid grid-cols-2 gap-2">
+              <button
+                onClick={() => {
+                  onClose();
+                  router.push("/authentication");
+                }}
+                className="rounded-full bg-slate-900 px-4 py-2 text-xs font-semibold uppercase tracking-[0.08em] text-white"
               >
                 Login
               </button>
-              <button 
-                onClick={() => { onClose(); router.push("/authentication?signup=true"); }}
-                className="bg-gray-200 text-gray-800 py-2 px-6 rounded-md hover:bg-gray-300 transition-colors duration-200 font-semibold"
+              <button
+                onClick={() => {
+                  onClose();
+                  router.push("/authentication?signup=true");
+                }}
+                className="rounded-full border border-slate-300 px-4 py-2 text-xs font-semibold uppercase tracking-[0.08em] text-slate-700"
               >
                 Sign Up
               </button>

@@ -3,30 +3,26 @@
 import { useCart } from "../../../../context/cartContext";
 import Link from "next/link";
 import Image from "next/image";
-import { usePathname, useRouter } from "next/navigation";
+import { useRouter } from "next/navigation";
 import { useEffect, useState } from "react";
 import { toast, ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 
 export default function CartPage() {
-  const { cartItems, removeFromCart, clearCart, feedbackMessage, isSavingCart, user } = useCart();
-  const pathname = usePathname();
-  const [previousPath, setPreviousPath] = useState(null);
+  const { cartItems, removeFromCart, updateQuantity, isSavingCart, user } = useCart();
   const [fullCartItems, setFullCartItems] = useState([]);
-  const [loading, setLoading] = useState(true); // New state for loading status
+  const [loading, setLoading] = useState(true);
   const router = useRouter();
 
   const cleanPriceString = (priceString) => {
-    if (typeof priceString === 'number') {
-      return priceString;
-    }
-    const cleanedString = String(priceString).replace(/[^0-9.]/g, '');
+    if (typeof priceString === "number") return priceString;
+    const cleanedString = String(priceString).replace(/[^0-9.]/g, "");
     return parseFloat(cleanedString) || 0;
   };
 
   useEffect(() => {
-    async function fetchProducts() {
-      setLoading(true); // Set loading to true at the start of the fetch
+    const fetchProducts = async () => {
+      setLoading(true);
       if (!cartItems.length) {
         setFullCartItems([]);
         setLoading(false);
@@ -37,173 +33,164 @@ export default function CartPage() {
         const productsWithDetails = await Promise.all(
           cartItems.map(async (item) => {
             const res = await fetch(`/api/products/${item.productId}`);
-            if (!res.ok) {
-              console.error(`Failed to fetch product with ID: ${item.productId}`);
-              throw new Error("Failed to fetch product details for a cart item.");
-            }
+            if (!res.ok) throw new Error(`Failed to fetch product ${item.productId}`);
             const product = await res.json();
             return {
               ...product,
               quantity: item.quantity,
-              selectedColor: item.selectedColor,
+              color: item.color || "",
               cartItemId: item.id || item.productId,
             };
           })
         );
+
         setFullCartItems(productsWithDetails);
       } catch (error) {
-        console.error("Error fetching product details for cart:", error);
+        console.error("Error fetching cart product details:", error);
         setFullCartItems([]);
-        toast.error("Error loading cart items. Please try again.");
+        toast.error("Error loading cart items. Please refresh and try again.");
       } finally {
-        setLoading(false); // Set loading to false after the fetch is complete (success or failure)
+        setLoading(false);
       }
-    }
+    };
 
     fetchProducts();
   }, [cartItems]);
 
-  useEffect(() => {
-    const lastPath = sessionStorage.getItem("currentPath");
-    if (lastPath) setPreviousPath(lastPath);
-    sessionStorage.setItem("lastPath", pathname);
-  }, [pathname]);
-
-  const formatPathname = (path) => {
-    if (path === "/") return "Home";
-    return path
-      .split("/")
-      .filter(Boolean)
-      .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
-      .join(" / ");
-  };
-
   const handleCheckout = () => {
     if (!user) {
-      toast.error("Please log in to proceed to checkout. Redirecting you now.");
+      toast.error("Please log in to proceed to checkout.");
       router.push("/authentication");
       return;
     }
-
     router.push("/checkout");
   };
 
-  const subtotal = fullCartItems.reduce(
-    (acc, item) => acc + (cleanPriceString(item.price) * item.quantity), 0
-  );
+  const subtotal = fullCartItems.reduce((acc, item) => acc + cleanPriceString(item.price) * item.quantity, 0);
 
   return (
-    <div className="bg-gray-100 min-h-screen">
-      <ToastContainer position="top-center" autoClose={3000} newestOnTop={true} />
+    <main className="min-h-screen bg-gradient-to-b from-slate-50 via-cyan-50/30 to-white">
+      <ToastContainer position="top-center" autoClose={3000} newestOnTop />
 
-      <div className="bg-white py-8 md:py-12 shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center space-x-2 text-sm text-gray-500 mb-2">
-            <Link href="/" className="hover:text-gray-700 transition-colors">
-              Home
-            </Link>
-            <span className="text-gray-400">/</span>
-            <span className="font-semibold text-gray-700">Cart</span>
+      <section className="border-b border-slate-200 bg-white/85 backdrop-blur-sm">
+        <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
+          <div className="mb-3 flex items-center gap-2 text-sm text-slate-500">
+            <Link href="/" className="hover:text-slate-900">Home</Link>
+            <span>/</span>
+            <span className="font-semibold text-slate-700">Cart</span>
           </div>
-          <h1 className="text-3xl sm:text-4xl font-bold text-gray-800">
-            Your Shopping Cart ({fullCartItems.length})
-          </h1>
+          <h1 className="text-3xl font-bold text-slate-900 sm:text-4xl">Your Cooler Cart ({fullCartItems.length})</h1>
+          <p className="mt-2 text-slate-600">Review items, adjust quantity, and proceed to secure checkout.</p>
         </div>
-      </div>
+      </section>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 md:py-12">
-        {feedbackMessage && (
-          <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded-lg mb-4" role="alert">
-            {feedbackMessage}
-          </div>
-        )}
-        {isSavingCart && (
-          <div className="text-center text-blue-600 mb-4 font-medium">
-            Updating your cart...
-          </div>
-        )}
+      <div className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+        {isSavingCart && <p className="mb-4 text-sm font-medium text-sky-700">Updating your cart...</p>}
 
-        {/* Conditional rendering based on loading state */}
         {loading ? (
-          <div className="flex justify-center items-center h-64">
-            <div className="animate-spin rounded-full h-16 w-16 border-t-4 border-b-4 border-blue-500"></div>
+          <div className="flex h-60 items-center justify-center">
+            <div className="h-14 w-14 animate-spin rounded-full border-4 border-slate-200 border-t-sky-500" />
           </div>
         ) : fullCartItems.length === 0 ? (
-          <div className="text-center p-12 bg-white rounded-lg shadow-md">
-            <p className="text-gray-600 text-xl font-medium">Your cart is currently empty.</p>
-            <Link href="/products" className="mt-6 inline-block text-blue-600 font-semibold hover:underline transition-colors">
+          <div className="rounded-3xl border border-slate-200 bg-white p-12 text-center shadow-sm">
+            <h2 className="text-2xl font-semibold text-slate-800">Your cart is empty</h2>
+            <p className="mt-2 text-slate-600">Explore our latest coolers and add products to continue.</p>
+            <Link
+              href="/products"
+              className="mt-6 inline-block rounded-full bg-slate-900 px-6 py-3 text-sm font-semibold uppercase tracking-[0.08em] text-white hover:bg-sky-700"
+            >
               Start Shopping
             </Link>
           </div>
         ) : (
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-            <div className="lg:col-span-2 space-y-6">
+          <div className="grid grid-cols-1 gap-8 lg:grid-cols-3">
+            <section className="space-y-4 lg:col-span-2">
               {fullCartItems.map((item) => (
-                <div key={`${item._id}-${item.selectedColor}`} className="bg-white p-6 rounded-xl shadow-md flex items-center space-x-6">
-                  <Link href={`/product/${item._id}`} className="flex-shrink-0">
+                <article
+                  key={`${item._id}-${item.color}`}
+                  className="grid grid-cols-1 items-center gap-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm sm:grid-cols-[120px_1fr_auto]"
+                >
+                  <Link href={`/product/${item._id}`} className="mx-auto sm:mx-0">
                     <Image
-                      src={item.image || `/placeholder-image.png`}
+                      src={item.image || "/placeholder-image.png"}
                       alt={item.title}
                       width={120}
                       height={120}
-                      className="w-32 h-32 object-cover rounded-lg border border-gray-200"
+                      className="h-28 w-28 rounded-xl border border-slate-200 object-cover"
                     />
                   </Link>
-                  <div className="flex-grow">
-                    <Link href={`/product/${item._id}`} className="hover:text-blue-600 transition-colors">
-                      <h2 className="text-lg font-semibold text-gray-800">{item.title}</h2>
+
+                  <div>
+                    <Link href={`/product/${item._id}`} className="text-lg font-semibold text-slate-900 hover:text-sky-700">
+                      {item.title}
                     </Link>
-                    <p className="text-sm text-gray-500 mt-1">
-                      {item.selectedColor && item.selectedColor !== "" && `Color: ${item.selectedColor}`}
-                    </p>
-                    <p className="text-lg font-bold text-gray-900 mt-2">
-                      ₦{(cleanPriceString(item.price) * item.quantity).toLocaleString()}
-                    </p>
+                    {item.color ? <p className="mt-1 text-sm text-slate-500">Color: {item.color}</p> : null}
+                    <p className="mt-2 text-sm text-slate-500">Unit price: ₦{cleanPriceString(item.price).toLocaleString()}</p>
+                    <p className="mt-1 text-lg font-bold text-slate-900">₦{(cleanPriceString(item.price) * item.quantity).toLocaleString()}</p>
                   </div>
-                  <div className="flex flex-col items-end space-y-2">
-                    <span className="text-gray-600">Qty: {item.quantity}</span>
+
+                  <div className="flex flex-col items-end gap-3">
+                    <div className="flex items-center rounded-full border border-slate-300 bg-white px-2 py-1">
+                      <button
+                        className="rounded-full px-2 py-1 text-slate-700 hover:bg-slate-100"
+                        onClick={() => updateQuantity(item._id, item.color, Math.max(1, item.quantity - 1))}
+                      >
+                        -
+                      </button>
+                      <span className="w-8 text-center text-sm font-semibold text-slate-900">{item.quantity}</span>
+                      <button
+                        className="rounded-full px-2 py-1 text-slate-700 hover:bg-slate-100"
+                        onClick={() => updateQuantity(item._id, item.color, item.quantity + 1)}
+                      >
+                        +
+                      </button>
+                    </div>
+
                     <button
                       onClick={() => removeFromCart(item._id, item.color)}
-                      className="text-red-500 hover:text-red-700 transition-colors p-2 rounded-full hover:bg-red-50"
-                      aria-label={`Remove ${item.title} from cart`}
+                      className="rounded-full border border-red-200 px-3 py-1.5 text-xs font-semibold uppercase tracking-[0.06em] text-red-600 hover:bg-red-50"
                     >
-                      <svg xmlns="http://www.w3.org/2000/svg" width="22" height="22" fill="currentColor" className="bi bi-trash3-fill" viewBox="0 0 16 16">
-                        <path d="M11 1.5v1h3.5a.5.5 0 0 1 0 1h-.538l-.853 10.66A2 2 0 0 1 11.115 16h-6.23a2 2 0 0 1-1.994-1.84L2.038 3.5H1.5a.5.5 0 0 1 0-1H5v-1A1.5 1.5 0 0 1 6.5 0h3A1.5 1.5 0 0 1 11 1.5m-5 0v1h4v-1a.5.5 0 0 0-.5-.5h-3a.5.5 0 0 0-.5.5M4.5 5.029l.5 8.5a.5.5 0 1 0 .998-.06l-.5-8.5a.5.5 0 1 0-.998.06Zm6.53-.528a.5.5 0 0 0-.528.47l-.5 8.5a.5.5 0 0 0 .998.058l.5-8.5a.5.5 0 0 0-.47-.53Zm-3.13 0a.5.5 0 0 0-.5.5v8.5a.5.5 0 0 0 1 0v-8.5a.5.5 0 0 0-.5-.5Z"/>
-                      </svg>
+                      Remove
                     </button>
                   </div>
-                </div>
+                </article>
               ))}
-              {/* <button onClick={() => clearCart()}>clear cart</button> */}
-            </div>
+            </section>
 
-            <div className="lg:col-span-1 bg-white p-6 rounded-xl shadow-md sticky top-28 h-fit">
-              <h2 className="text-xl font-bold text-gray-800 mb-4 border-b pb-4">Order Summary</h2>
-              <div className="flex justify-between items-center mb-4 text-gray-700">
-                <span>Subtotal ({fullCartItems.length} items)</span>
-                <span className="font-semibold">₦{subtotal.toLocaleString()}</span>
+            <aside className="lg:col-span-1">
+              <div className="sticky top-28 rounded-3xl border border-slate-200 bg-white p-6 shadow-[0_16px_45px_rgba(15,23,42,0.08)]">
+                <h2 className="mb-4 border-b border-slate-200 pb-4 text-xl font-bold text-slate-900">Order Summary</h2>
+                <div className="space-y-3 text-sm text-slate-700">
+                  <p className="flex items-center justify-between">
+                    <span>Items ({fullCartItems.length})</span>
+                    <span className="font-semibold">₦{subtotal.toLocaleString()}</span>
+                  </p>
+                  <p className="flex items-center justify-between">
+                    <span>Shipping</span>
+                    <span className="font-semibold">Calculated at checkout</span>
+                  </p>
+                </div>
+                <div className="mt-5 border-t border-slate-200 pt-4 text-lg font-bold text-slate-900">
+                  <p className="flex items-center justify-between">
+                    <span>Total</span>
+                    <span>₦{subtotal.toLocaleString()}</span>
+                  </p>
+                </div>
+
+                <button
+                  onClick={handleCheckout}
+                  className="mt-6 w-full rounded-full bg-slate-900 px-4 py-3 text-sm font-semibold uppercase tracking-[0.08em] text-white hover:bg-sky-700"
+                >
+                  Proceed to Checkout
+                </button>
+                <Link href="/products" className="mt-4 block text-center text-sm font-semibold text-sky-700 hover:text-sky-900">
+                  Continue Shopping
+                </Link>
               </div>
-              <div className="flex justify-between items-center mb-6 text-gray-700">
-                <span>Shipping Fee</span>
-                <span className="font-semibold">Calculated at checkout</span>
-              </div>
-              <div className="flex justify-between items-center border-t pt-4 text-xl font-bold text-gray-900">
-                <span>Total</span>
-                <span>₦{subtotal.toLocaleString()}</span>
-              </div>
-              <button
-                onClick={handleCheckout}
-                className="mt-6 w-full bg-blue-600 text-white font-semibold py-3 rounded-lg hover:bg-blue-700 transition-colors"
-              >
-                Proceed to Checkout
-              </button>
-              <Link href="/products" className="block text-center mt-4 text-sm text-blue-600 hover:underline">
-                Continue Shopping
-              </Link>
-            </div>
+            </aside>
           </div>
         )}
       </div>
-    </div>
+    </main>
   );
 }

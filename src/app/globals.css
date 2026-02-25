@@ -2,7 +2,14 @@
 
 
 body {
-  font-family: Arial, Helvetica, sans-serif;
+  font-family: var(--font-geist-sans), Arial, Helvetica, sans-serif;
+  background: #f8fafc;
+  color: #0f172a;
+}
+
+::selection {
+  background: #0ea5e9;
+  color: #f8fafc;
 }
 
 .clip-hexagon{
@@ -150,5 +157,15 @@ body {
   }
 
   .delay-300 { animation-delay: 0.3s; }
-  .delay-500 { animation-delay: 0.5s; }
-  .delay-700 { animation-delay: 0.7s; }
+.delay-500 { animation-delay: 0.5s; }
+.delay-700 { animation-delay: 0.7s; }
+
+.tilt-shell {
+  perspective: 1100px;
+  transform-style: preserve-3d;
+}
+
+.tilt-inner {
+  transform-style: preserve-3d;
+  will-change: transform;
+}

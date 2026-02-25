@@ -10,7 +10,7 @@ export default function RootLayout({ children }) {
   return (
     <div>
       <div className="">
-        <Middow />
+        {/* <Middow /> */}
         <Suspense fallback={
           <div className="flex justify-center items-center h-screen bg-gray-50">
             <div className="animate-spin rounded-full h-16 w-16 border-t-4 border-b-4 border-blue-500"></div>

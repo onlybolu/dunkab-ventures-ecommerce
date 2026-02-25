@@ -2,15 +2,14 @@
 
 import { useCart } from "../../../../context/cartContext";
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
 import { useEffect, useState } from "react";
-import { toast, ToastContainer } from "react-toastify";
+import { ToastContainer } from "react-toastify";
 import "react-toastify/dist/ReactToastify.css";
 import Image from "next/image";
 
 export default function OrdersPage() {
-  const { user } = useCart();
-  const router = useRouter();
+  const { user, loading: contextLoading } = useCart();
   const pathname = usePathname();
   const [orders, setOrders] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -36,8 +35,8 @@ export default function OrdersPage() {
   useEffect(() => {
     const fetchOrders = async () => {
       if (!user?._id) {
-        router.push("/authentication");
-        toast.error("Please log in to view your orders.");
+        setOrders([]);
+        setLoading(false);
         return;
       }
 
@@ -61,10 +60,10 @@ export default function OrdersPage() {
       }
     };
 
-    if (user) {
+    if (!contextLoading) {
       fetchOrders();
     }
-  }, [user, router]);
+  }, [user, contextLoading]);
 
   // Helper to format date
   const formatDate = (dateString) => {
@@ -138,11 +137,26 @@ export default function OrdersPage() {
           <div className="flex justify-center items-center h-64">
             <div className="animate-spin rounded-full h-16 w-16 border-t-4 border-b-4 border-blue-500"></div>
           </div>
+        ) : !user ? (
+          <div className="text-center p-12 bg-white rounded-lg shadow-md">
+            <p className="text-gray-700 text-xl font-semibold">Guest mode</p>
+            <p className="text-gray-600 mt-2">You have to log in to view your orders.</p>
+            <Link
+              href="/authentication"
+              className="mt-6 inline-block bg-blue-600 text-white px-5 py-2.5 rounded-lg font-semibold hover:bg-blue-700 transition-colors"
+            >
+              Log In
+            </Link>
+          </div>
         ) : orders.length === 0 ? (
           <div className="text-center p-12 bg-white rounded-lg shadow-md">
-            <p className="text-gray-600 text-xl font-medium">You haven't placed any orders yet.</p>
-            <Link href="/products" className="mt-6 inline-block text-blue-600 font-semibold hover:underline transition-colors">
-              Start Shopping
+            <p className="text-gray-700 text-xl font-semibold">No orders yet</p>
+            <p className="text-gray-600 mt-2">Shop products to view orders here.</p>
+            <Link
+              href="/products"
+              className="mt-6 inline-block bg-blue-600 text-white px-5 py-2.5 rounded-lg font-semibold hover:bg-blue-700 transition-colors"
+            >
+              Shop Products
             </Link>
           </div>
         ) : (
