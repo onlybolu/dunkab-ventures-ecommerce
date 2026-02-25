@@ -88,6 +88,7 @@ export default function CheckoutPage() {
       const saveOrderRes = await fetch("/api/order", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
+        credentials: "include",
         body: JSON.stringify({
           userId: user._id,
           items: cartItems,
@@ -101,7 +102,6 @@ export default function CheckoutPage() {
           },
           totalAmount: method === "delivery" ? total : subtotal,
           paymentStatus: "pending",
-          orderStatus: "pending",
         }),
       });
 

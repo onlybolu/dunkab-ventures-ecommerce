@@ -8,12 +8,24 @@ import { FiChevronDown, FiChevronUp, FiSearch } from "react-icons/fi";
 
 const PRODUCTS_PER_PAGE = 12;
 
+const normalizeCategoryValue = (raw) => {
+  if (!raw) return "all";
+
+  try {
+    const parsed = JSON.parse(raw);
+    if (parsed?.$in && Array.isArray(parsed.$in) && parsed.$in.length) {
+      return String(parsed.$in[0]).toLowerCase();
+    }
+  } catch {
+    // not JSON, use as-is
+  }
+
+  return String(raw).toLowerCase();
+};
+
 export default function ProductsPage() {
   const [products, setProducts] = useState([]);
-  const [category, setCategory] = useState("all");
   const [categories, setCategories] = useState([]);
-  const [minPrice, setMinPrice] = useState("");
-  const [maxPrice, setMaxPrice] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [page, setPage] = useState(1);
@@ -23,21 +35,38 @@ export default function ProductsPage() {
   const pathname = usePathname();
   const router = useRouter();
   const searchParams = useSearchParams();
-  const query = searchParams.get("q") || "";
 
-  const getSingularCategory = (cat) => {
-    if (typeof cat !== "string") return cat;
-    return cat.endsWith("s") ? cat.slice(0, -1) : cat;
-  };
+  const query = searchParams.get("q") || "";
+  const appliedCategory = normalizeCategoryValue(searchParams.get("category"));
+  const appliedMinPrice = searchParams.get("minPrice") || "";
+  const appliedMaxPrice = searchParams.get("maxPrice") || "";
+
+  const [categoryInput, setCategoryInput] = useState(appliedCategory);
+  const [minPriceInput, setMinPriceInput] = useState(appliedMinPrice);
+  const [maxPriceInput, setMaxPriceInput] = useState(appliedMaxPrice);
+
+  useEffect(() => {
+    setCategoryInput(appliedCategory);
+    setMinPriceInput(appliedMinPrice);
+    setMaxPriceInput(appliedMaxPrice);
+  }, [appliedCategory, appliedMinPrice, appliedMaxPrice]);
 
   useEffect(() => {
     const fetchCategories = async () => {
       try {
-        const res = await fetch("/api/categories");
+        const res = await fetch("/api/categories", { cache: "no-store" });
         if (!res.ok) throw new Error("Failed to fetch categories");
         const data = await res.json();
-        const normalized = data.map(getSingularCategory);
-        setCategories(["all", ...new Set(normalized)]);
+
+        const normalized = Array.from(
+          new Set(
+            (Array.isArray(data) ? data : [])
+              .filter(Boolean)
+              .map((c) => String(c).trim().toLowerCase())
+          )
+        );
+
+        setCategories(["all", ...normalized]);
       } catch (err) {
         console.error("Error fetching categories:", err);
       }
@@ -47,24 +76,23 @@ export default function ProductsPage() {
   }, []);
 
   useEffect(() => {
+    const controller = new AbortController();
+
     const fetchProducts = async () => {
       try {
         setLoading(true);
         const params = new URLSearchParams();
         if (query) params.append("q", query);
+        if (appliedCategory !== "all") params.append("category", appliedCategory);
+        if (appliedMinPrice) params.append("minPrice", appliedMinPrice);
+        if (appliedMaxPrice) params.append("maxPrice", appliedMaxPrice);
+        params.append("page", String(page));
+        params.append("limit", String(PRODUCTS_PER_PAGE));
 
-        if (category !== "all") {
-          const singular = category;
-          const plural = `${category}s`;
-          params.append("category", JSON.stringify({ $in: [singular, plural] }));
-        }
-
-        if (minPrice) params.append("minPrice", minPrice);
-        if (maxPrice) params.append("maxPrice", maxPrice);
-        params.append("page", page);
-        params.append("limit", PRODUCTS_PER_PAGE);
-
-        const res = await fetch(`/api/products?${params.toString()}`);
+        const res = await fetch(`/api/products?${params.toString()}`, {
+          signal: controller.signal,
+          cache: "no-store",
+        });
         const data = await res.json();
 
         if (!res.ok) {
@@ -78,6 +106,7 @@ export default function ProductsPage() {
         setTotalPages(data.totalPages || 1);
         setError("");
       } catch (err) {
+        if (err?.name === "AbortError") return;
         console.error("Error:", err);
         setError("Something went wrong");
         setProducts([]);
@@ -87,29 +116,46 @@ export default function ProductsPage() {
       }
     };
 
-    const delay = setTimeout(fetchProducts, 300);
-    return () => clearTimeout(delay);
-  }, [query, category, minPrice, maxPrice, page]);
+    fetchProducts();
+    return () => controller.abort();
+  }, [query, appliedCategory, appliedMinPrice, appliedMaxPrice, page]);
 
-  const handleSearchChange = (value) => {
+  useEffect(() => {
+    setPage(1);
+  }, [query, appliedCategory, appliedMinPrice, appliedMaxPrice]);
+
+  const updateUrlFilters = ({ q = query, category = categoryInput, min = minPriceInput, max = maxPriceInput } = {}) => {
     const params = new URLSearchParams(searchParams.toString());
-    if (value) params.set("q", value);
+
+    if (q) params.set("q", q);
     else params.delete("q");
 
-    params.set("page", "1");
+    if (category && category !== "all") params.set("category", category);
+    else params.delete("category");
+
+    if (min) params.set("minPrice", min);
+    else params.delete("minPrice");
+
+    if (max) params.set("maxPrice", max);
+    else params.delete("maxPrice");
+
+    params.delete("page");
     router.push(`${pathname}?${params.toString()}`);
-    setPage(1);
+  };
+
+  const handleSearchChange = (value) => {
+    updateUrlFilters({ q: value });
   };
 
   const handleApplyFilters = () => {
-    setPage(1);
+    updateUrlFilters();
   };
 
   const clearFilters = () => {
-    setCategory("all");
-    setMinPrice("");
-    setMaxPrice("");
-    setPage(1);
+    setCategoryInput("all");
+    setMinPriceInput("");
+    setMaxPriceInput("");
+    updateUrlFilters({ category: "all", min: "", max: "" });
   };
 
   const resultsLabel = useMemo(() => {
@@ -172,8 +218,8 @@ export default function ProductsPage() {
               <div>
                 <label className="mb-2 block text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">Category</label>
                 <select
-                  value={category}
-                  onChange={(e) => setCategory(e.target.value)}
+                  value={categoryInput}
+                  onChange={(e) => setCategoryInput(e.target.value)}
                   className="w-full rounded-xl border border-slate-300 bg-white px-3 py-2.5 text-sm text-slate-800 outline-none transition focus:border-sky-500 focus:ring-2 focus:ring-sky-100"
                 >
                   {categories.map((c) => (
@@ -190,15 +236,15 @@ export default function ProductsPage() {
                   <input
                     type="number"
                     placeholder="Min"
-                    value={minPrice}
-                    onChange={(e) => setMinPrice(e.target.value)}
+                    value={minPriceInput}
+                    onChange={(e) => setMinPriceInput(e.target.value)}
                     className="w-full rounded-xl border border-slate-300 px-3 py-2.5 text-sm text-slate-800 outline-none transition focus:border-sky-500 focus:ring-2 focus:ring-sky-100"
                   />
                   <input
                     type="number"
                     placeholder="Max"
-                    value={maxPrice}
-                    onChange={(e) => setMaxPrice(e.target.value)}
+                    value={maxPriceInput}
+                    onChange={(e) => setMaxPriceInput(e.target.value)}
                     className="w-full rounded-xl border border-slate-300 px-3 py-2.5 text-sm text-slate-800 outline-none transition focus:border-sky-500 focus:ring-2 focus:ring-sky-100"
                   />
                 </div>

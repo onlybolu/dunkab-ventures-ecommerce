@@ -16,18 +16,30 @@ export default function LandingPage() {
   const rootRef = useRef(null);
   const router = useRouter();
 
-  const fetchProducts = async () => {
-    try {
-      setLoading(true);
+  const fetchProducts = async (signal) => {
+    const runFetch = async () => {
       const params = new URLSearchParams();
       params.append("page", "1");
       params.append("limit", "12");
 
-      const res = await fetch(`/api/products?${params.toString()}`);
+      const res = await fetch(`/api/products?${params.toString()}`, {
+        cache: "no-store",
+        signal,
+      });
       const data = await res.json();
+      return { res, data };
+    };
+
+    try {
+      setLoading(true);
+      let response = await runFetch();
+      if (!response.res.ok) {
+        response = await runFetch();
+      }
+      const { res, data } = response;
 
       if (!res.ok) {
-        setProducts([]);
+        setProducts((prev) => (prev.length ? prev : []));
         setError(data.message || "Failed to fetch products.");
         return;
       }
@@ -35,16 +47,20 @@ export default function LandingPage() {
       setProducts(Array.isArray(data.products) ? data.products : []);
       setError("");
     } catch (err) {
+      if (err?.name === "AbortError") return;
       console.error("Error:", err);
       setError("Something went wrong");
-      setProducts([]);
+      setProducts((prev) => (prev.length ? prev : []));
     } finally {
       setLoading(false);
     }
+
   };
 
   useEffect(() => {
-    fetchProducts();
+    const controller = new AbortController();
+    fetchProducts(controller.signal);
+    return () => controller.abort();
   }, []);
 
   useEffect(() => {
@@ -98,19 +114,6 @@ export default function LandingPage() {
         });
       });
 
-      gsap.from("[data-product-tile]", {
-        opacity: 0,
-        y: 46,
-        scale: 0.96,
-        duration: 0.7,
-        stagger: 0.1,
-        ease: "power2.out",
-        scrollTrigger: {
-          trigger: "[data-products-grid]",
-          start: "top 84%",
-        },
-      });
-
       gsap.from("[data-collection-card]", {
         opacity: 0,
         y: 60,
@@ -124,7 +127,8 @@ export default function LandingPage() {
       });
     }, rootRef);
 
-    const tiltItems = rootRef.current?.querySelectorAll("[data-tilt]") || [];
+    const canHover = typeof window !== "undefined" && window.matchMedia("(hover: hover)").matches;
+    const tiltItems = canHover ? rootRef.current?.querySelectorAll("[data-tilt]") || [] : [];
     const cleanups = [];
 
     tiltItems.forEach((item) => {
@@ -171,9 +175,28 @@ export default function LandingPage() {
       cleanups.forEach((fn) => fn());
       ctx.revert();
     };
+  }, []);
+
+  useEffect(() => {
+    if (!products.length) return;
+
+    const ctx = gsap.context(() => {
+      gsap.from("[data-product-tile]", {
+        opacity: 0,
+        y: 46,
+        scale: 0.96,
+        duration: 0.55,
+        stagger: 0.1,
+        ease: "power2.out",
+      });
+    }, rootRef);
+
+    ScrollTrigger.refresh();
+    return () => ctx.revert();
   }, [products.length]);
 
   const handleProductView = (id) => {
+    if (!id) return;
     router.push(`/product/${id}`);
   };
 
@@ -322,20 +345,18 @@ export default function LandingPage() {
             <div className="rounded-2xl border border-slate-200 bg-white p-10 text-center text-slate-600">No products found.</div>
           ) : (
             <div data-products-grid className="grid grid-cols-1 gap-6 sm:grid-cols-2 lg:grid-cols-4">
-              {products.slice(0, 8).map((product) => (
+              {products.slice(0, 8).map((product, index) => (
                 <article
-                  key={product._id}
+                  key={product._id || `${product.title || "product"}-${index}`}
                   data-product-tile
                   data-tilt
                   className="tilt-shell cursor-pointer overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-[0_14px_35px_rgba(15,23,42,0.08)] transition hover:-translate-y-1 hover:shadow-[0_20px_45px_rgba(15,23,42,0.15)]"
                   onClick={() => handleProductView(product._id)}
                 >
                   <div data-tilt-inner className="tilt-inner">
-                    <Image
-                      src={product.image}
-                      alt={product.title}
-                      width={400}
-                      height={240}
+                    <img
+                      src={product.image || "/img1.png"}
+                      alt={product.title || "Product image"}
                       className="h-52 w-full object-cover"
                     />
                     <div className="p-4">

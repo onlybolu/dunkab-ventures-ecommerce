@@ -1,28 +1,33 @@
+import { NextResponse } from "next/server";
+import dbConnect from "../../../../lib/dbconnect";
+import Order from "../../../../models/Order";
 
-import Order from '../../../../models/Order';
+export async function POST(request) {
+  try {
+    await dbConnect();
 
-export default async function handler(req, res) {
-  if (req.method === 'POST') {
-    try {
-      const { order_id, status } = req.body; 
-
-      if (status === 'successful') {
-        const order = await Order.findByIdAndUpdate(order_id, {
-          paymentStatus: 'successful',
-          orderStatus: 'pending', // Order is now confirmed, but not yet processed
-        }, { new: true });
-
-        
-
-        res.status(200).json({ success: true, message: 'Order updated successfully' });
-      } else {
-        res.status(200).json({ success: true, message: 'Payment status not successful' });
-      }
-    } catch (error) {
-      console.error(error);
-      res.status(500).json({ success: false, message: 'Server Error' });
+    const { order_id: orderId, status } = await request.json();
+    if (!orderId) {
+      return NextResponse.json({ success: false, message: "order_id is required" }, { status: 400 });
     }
-  } else {
-    res.status(405).json({ message: 'Method Not Allowed' });
+
+    const normalizedStatus = String(status || "").toLowerCase();
+    const paymentStatus = normalizedStatus === "successful" ? "successful" : "failed";
+    const orderStatus = paymentStatus === "successful" ? "processing" : "cancelled";
+
+    const order = await Order.findByIdAndUpdate(
+      orderId,
+      { paymentStatus, orderStatus },
+      { new: true }
+    );
+
+    if (!order) {
+      return NextResponse.json({ success: false, message: "Order not found" }, { status: 404 });
+    }
+
+    return NextResponse.json({ success: true, order }, { status: 200 });
+  } catch (error) {
+    console.error("Payment callback error:", error);
+    return NextResponse.json({ success: false, message: "Server Error" }, { status: 500 });
   }
 }

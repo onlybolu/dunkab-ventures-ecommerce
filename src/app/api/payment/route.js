@@ -5,7 +5,7 @@ import { headers } from "next/headers";
 export async function POST(req) {
   const body = await req.json();
 
-  const headersList = headers();
+  const headersList = await headers();
   const protocol = headersList.get("x-forwarded-proto") || "http";
   const host = headersList.get("host");
   const baseUrl = `${protocol}://${host}`;
@@ -15,7 +15,7 @@ export async function POST(req) {
   }
 
   const payload = {
-    tx_ref: Date.now().toString(),
+    tx_ref: `order-${body.orderId}-${Date.now()}`,
     amount: body.amount,
     currency: "NGN",
     // This is the CRITICAL FIX: The redirect URL is now dynamic.
@@ -30,6 +30,9 @@ export async function POST(req) {
       description: "Product payment",
       // FIX: Use a dynamic base path for the logo.
       logo: `${baseUrl}/logo.png`,
+    },
+    meta: {
+      orderId: body.orderId,
     },
   };
 

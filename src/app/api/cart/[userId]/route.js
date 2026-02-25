@@ -1,29 +1,34 @@
 import dbConnect from "../../../../../lib/dbconnect";
 import User from "../../../../../models/user";
 
-export async function GET(req, context) {
+export async function GET(req, { params }) {
   await dbConnect();
-  const { userId } = await context.params; 
+  const { userId } = params;
 
   try {
     const user = await User.findById(userId).populate("cart.productId");
     if (!user) {
-      return new Response(JSON.stringify({ error: "User not found" }), { status: 404 });
+      return new Response(JSON.stringify({ error: "User not found", cart: [] }), { status: 404 });
     }
 
-    const cart = user.cart.map((item) => ({
-      _id: item.productId._id,
-      name: item.productId.title,
-      price: item.productId.price,
-      quantity: item.quantity,
-      image: item.productId.image,
-      image1: item.productId.image1,
-      image2: item.productId.image2,
-    }));
+    const cart = (user.cart || [])
+      .filter((item) => item.productId)
+      .map((item) => ({
+        productId: String(item.productId._id),
+        _id: String(item.productId._id),
+        title: item.productId.title,
+        name: item.productId.title,
+        price: item.productId.price,
+        quantity: item.quantity,
+        color: item.color || "",
+        image: item.productId.image,
+        image1: item.productId.image1,
+        image2: item.productId.image2,
+      }));
 
     return new Response(JSON.stringify({ cart }), { status: 200 });
   } catch (err) {
-    return new Response(JSON.stringify({ error: "Failed to fetch cart" }), { status: 500 });
+    console.error("Error fetching cart:", err);
+    return new Response(JSON.stringify({ error: "Failed to fetch cart", cart: [] }), { status: 500 });
   }
 }
-

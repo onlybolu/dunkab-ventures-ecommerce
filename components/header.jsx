@@ -91,9 +91,11 @@ const Header = () => {
 
     logout();
     logoutFavoriteUserLocally();
+    window.dispatchEvent(new CustomEvent("auth:changed", { detail: { type: "logout" } }));
     sessionStorage.removeItem("currentPath");
     setShowProfilePopup(false);
     setShowLogoutPopup(true);
+    router.refresh();
     router.push("/");
   };
 

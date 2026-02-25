@@ -1,258 +1,282 @@
 "use client";
 
-import { useCart } from "../../../../context/cartContext";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { useEffect, useState } from "react";
-import { ToastContainer } from "react-toastify";
-import "react-toastify/dist/ReactToastify.css";
-import Image from "next/image";
+import { useEffect, useMemo, useState } from "react";
+import { useCart } from "../../../../context/cartContext";
+
+const PAGE_SIZE = 8;
+
+const paymentTabs = [
+  { label: "All", value: "all" },
+  { label: "Pending", value: "pending" },
+  { label: "Successful", value: "successful" },
+  { label: "Failed", value: "failed" },
+];
+
+const formatCurrency = (value) => {
+  const parsed =
+    typeof value === "number"
+      ? value
+      : parseFloat(String(value ?? "").replace(/[^0-9.]/g, ""));
+  const amount = Number.isFinite(parsed) ? parsed : 0;
+  return `₦${amount.toLocaleString()}`;
+};
+
+const formatDate = (value) => {
+  try {
+    return new Date(value).toLocaleString(undefined, {
+      year: "numeric",
+      month: "short",
+      day: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    });
+  } catch {
+    return "N/A";
+  }
+};
+
+const statusBadgeClass = (status) => {
+  const normalized = String(status || "").toLowerCase();
+  if (normalized === "successful" || normalized === "delivered") return "bg-emerald-50 text-emerald-700 border-emerald-200";
+  if (normalized === "failed" || normalized === "cancelled") return "bg-rose-50 text-rose-700 border-rose-200";
+  if (normalized === "processing" || normalized === "dispatched" || normalized === "being delivered") return "bg-sky-50 text-sky-700 border-sky-200";
+  return "bg-amber-50 text-amber-700 border-amber-200";
+};
 
 export default function OrdersPage() {
-  const { user, loading: contextLoading } = useCart();
-  const pathname = usePathname();
+  const { user, loading: authLoading } = useCart();
+
   const [orders, setOrders] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
-  const [previousPath, setPreviousPath] = useState(null);
-  const [selectedStatus, setSelectedStatus] = useState('all');
-  
-  // NEW: State for pagination
-  const [pageNumber, setPageNumber] = useState({
-    all: 1, successful: 1, pending: 1, failed: 1,
-    'being delivered': 1, 'delivered': 1, 'cancelled': 1,
-  });
-  const ordersPerPage = 10;
+  const [paymentStatus, setPaymentStatus] = useState("all");
+  const [page, setPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [totalOrders, setTotalOrders] = useState(0);
 
-  // Set up previous path for breadcrumbs
-  useEffect(() => {
-    const lastPath = sessionStorage.getItem("currentPath");
-    if (lastPath) setPreviousPath(lastPath);
-    sessionStorage.setItem("lastPath", pathname);
-  }, [pathname]);
+  const fetchOrders = async (signal) => {
+    if (!user?._id) {
+      setOrders([]);
+      setTotalOrders(0);
+      setTotalPages(1);
+      setLoading(false);
+      return;
+    }
 
-  // Fetch user-specific orders
-  useEffect(() => {
-    const fetchOrders = async () => {
-      if (!user?._id) {
-        setOrders([]);
-        setLoading(false);
-        return;
+    setLoading(true);
+    setError("");
+
+    try {
+      const params = new URLSearchParams();
+      params.set("page", String(page));
+      params.set("limit", String(PAGE_SIZE));
+      if (paymentStatus !== "all") params.set("paymentStatus", paymentStatus);
+
+      const res = await fetch(`/api/order?${params.toString()}`, {
+        cache: "no-store",
+        credentials: "include",
+        signal,
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data?.message || "Failed to fetch orders");
       }
 
-      setLoading(true);
-      setError("");
-      try {
-        const res = await fetch(`/api/order?userId=${user._id}`);
-        const data = await res.json();
+      setOrders(Array.isArray(data.orders) ? data.orders : []);
+      setTotalOrders(Number(data.totalOrders) || 0);
+      setTotalPages(Math.max(1, Number(data.totalPages) || 1));
+    } catch (err) {
+      if (err?.name === "AbortError") return;
+      console.error("Orders fetch error:", err);
+      setError(err?.message || "Failed to load orders");
+      setOrders([]);
+      setTotalOrders(0);
+      setTotalPages(1);
+    } finally {
+      setLoading(false);
+    }
+  };
 
-        if (!res.ok) {
-          throw new Error(data.message || "Failed to fetch orders.");
-        }
+  useEffect(() => {
+    if (authLoading) return;
+    const controller = new AbortController();
+    fetchOrders(controller.signal);
+    return () => controller.abort();
+  }, [authLoading, user?._id, page, paymentStatus]);
 
-        setOrders(data.orders);
-      } catch (err) {
-        console.error("Error fetching orders:", err);
-        setError(err.message || "Failed to load your orders.");
-        setOrders([]);
-      } finally {
-        setLoading(false);
-      }
+  useEffect(() => {
+    setPage(1);
+  }, [paymentStatus]);
+
+  const orderSummary = useMemo(() => {
+    return {
+      pending: orders.filter((o) => o.paymentStatus === "pending").length,
+      successful: orders.filter((o) => o.paymentStatus === "successful").length,
+      failed: orders.filter((o) => o.paymentStatus === "failed").length,
     };
-
-    if (!contextLoading) {
-      fetchOrders();
-    }
-  }, [user, contextLoading]);
-
-  // Helper to format date
-  const formatDate = (dateString) => {
-    const options = { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' };
-    return new Date(dateString).toLocaleDateString(undefined, options);
-  };
-
-  // Helper to get status styling
-  const getStatusClasses = (status) => {
-    switch (status) {
-      case "pending":
-        return "bg-yellow-100 text-yellow-800";
-      case "dispatched":
-        return "bg-blue-100 text-blue-800";
-      case "delivered":
-        return "bg-green-100 text-green-800";
-      case "cancelled":
-        return "bg-red-100 text-red-800";
-      case "successful":
-        return "bg-green-100 text-green-800";
-      case "failed":
-        return "bg-red-100 text-red-800";
-      case "being delivered":
-        return "bg-blue-100 text-blue-800";
-      default:
-        return "bg-gray-100 text-gray-800";
-    }
-  };
-
-  // NEW: Filter and paginate orders based on selected status
-  const filteredOrders = selectedStatus === 'all'
-    ? orders
-    : orders.filter(order => order.paymentStatus === selectedStatus);
-
-  const currentPage = pageNumber[selectedStatus] || 1;
-  const totalPages = Math.ceil(filteredOrders.length / ordersPerPage);
-  const indexOfLastOrder = currentPage * ordersPerPage;
-  const indexOfFirstOrder = indexOfLastOrder - ordersPerPage;
-  const currentOrders = filteredOrders.slice(indexOfFirstOrder, indexOfLastOrder);
-
-  const handlePageChange = (direction) => {
-    setPageNumber(prev => {
-      const newPage = direction === 'next' ? prev[selectedStatus] + 1 : prev[selectedStatus] - 1;
-      return { ...prev, [selectedStatus]: newPage };
-    });
-  };
+  }, [orders]);
 
   return (
-    <div className="bg-gray-100 min-h-screen">
-      <ToastContainer position="top-center" autoClose={1000} newestOnTop={true} />
-
-      <div className="bg-white py-8 md:py-12 shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center space-x-2 text-sm text-gray-500 mb-2">
-            <Link href="/" className="hover:text-gray-700 transition-colors">Home</Link>
-            <span className="text-gray-400">/</span>
-            <span className="font-semibold text-gray-700">My Orders</span>
+    <main className="min-h-screen bg-gradient-to-b from-slate-50 via-cyan-50/30 to-white">
+      <section className="border-b border-slate-200 bg-white/85 backdrop-blur-sm">
+        <div className="mx-auto max-w-7xl px-4 py-10 sm:px-6 lg:px-8">
+          <div className="mb-3 flex items-center gap-2 text-sm text-slate-500">
+            <Link href="/" className="hover:text-slate-900">Home</Link>
+            <span>/</span>
+            <span className="font-semibold text-slate-700">Orders</span>
           </div>
-          <h1 className="text-3xl sm:text-4xl font-bold text-gray-800">Your Order History</h1>
+          <h1 className="text-3xl font-bold text-slate-900 sm:text-4xl">My Orders</h1>
+          <p className="mt-2 text-slate-600">Track status, payment outcomes, and all purchased items.</p>
         </div>
-      </div>
+      </section>
 
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 md:py-12">
-        {error && (
-          <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded-lg mb-4" role="alert">
-            {error}
-          </div>
-        )}
-
-        {loading ? (
-          <div className="flex justify-center items-center h-64">
-            <div className="animate-spin rounded-full h-16 w-16 border-t-4 border-b-4 border-blue-500"></div>
+      <section className="mx-auto max-w-7xl px-4 py-8 sm:px-6 lg:px-8">
+        {authLoading ? (
+          <div className="flex h-56 items-center justify-center rounded-2xl border border-slate-200 bg-white">
+            <div className="h-12 w-12 animate-spin rounded-full border-4 border-slate-200 border-t-sky-500" />
           </div>
         ) : !user ? (
-          <div className="text-center p-12 bg-white rounded-lg shadow-md">
-            <p className="text-gray-700 text-xl font-semibold">Guest mode</p>
-            <p className="text-gray-600 mt-2">You have to log in to view your orders.</p>
+          <div className="rounded-2xl border border-slate-200 bg-white p-10 text-center shadow-sm">
+            <h2 className="text-2xl font-bold text-slate-900">Guest Mode</h2>
+            <p className="mt-2 text-slate-600">You need to log in to view your orders.</p>
             <Link
               href="/authentication"
-              className="mt-6 inline-block bg-blue-600 text-white px-5 py-2.5 rounded-lg font-semibold hover:bg-blue-700 transition-colors"
+              className="mt-6 inline-block rounded-full bg-slate-900 px-6 py-3 text-sm font-semibold uppercase tracking-[0.08em] text-white hover:bg-sky-700"
             >
               Log In
             </Link>
           </div>
-        ) : orders.length === 0 ? (
-          <div className="text-center p-12 bg-white rounded-lg shadow-md">
-            <p className="text-gray-700 text-xl font-semibold">No orders yet</p>
-            <p className="text-gray-600 mt-2">Shop products to view orders here.</p>
-            <Link
-              href="/products"
-              className="mt-6 inline-block bg-blue-600 text-white px-5 py-2.5 rounded-lg font-semibold hover:bg-blue-700 transition-colors"
-            >
-              Shop Products
-            </Link>
-          </div>
         ) : (
-          <div className="space-y-8">
-            <div className="flex flex-wrap space-x-2 mb-6">
-              {['all', 'successful', 'failed'].map(status => (
+          <div className="space-y-6">
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-4">
+              <div className="rounded-2xl border border-slate-200 bg-white p-4">
+                <p className="text-xs font-semibold uppercase tracking-[0.12em] text-slate-500">Total Orders</p>
+                <p className="mt-1 text-2xl font-bold text-slate-900">{totalOrders}</p>
+              </div>
+              <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4">
+                <p className="text-xs font-semibold uppercase tracking-[0.12em] text-amber-700">Pending</p>
+                <p className="mt-1 text-2xl font-bold text-amber-900">{orderSummary.pending}</p>
+              </div>
+              <div className="rounded-2xl border border-emerald-200 bg-emerald-50 p-4">
+                <p className="text-xs font-semibold uppercase tracking-[0.12em] text-emerald-700">Successful</p>
+                <p className="mt-1 text-2xl font-bold text-emerald-900">{orderSummary.successful}</p>
+              </div>
+              <div className="rounded-2xl border border-rose-200 bg-rose-50 p-4">
+                <p className="text-xs font-semibold uppercase tracking-[0.12em] text-rose-700">Failed</p>
+                <p className="mt-1 text-2xl font-bold text-rose-900">{orderSummary.failed}</p>
+              </div>
+            </div>
+
+            <div className="flex flex-wrap gap-2">
+              {paymentTabs.map((tab) => (
                 <button
-                  key={status}
-                  onClick={() => setSelectedStatus(status)}
-                  className={`px-4 py-2 rounded-lg text-sm font-semibold transition-colors ${
-                    selectedStatus === status
-                      ? 'bg-blue-600 text-white'
-                      : 'bg-gray-200 text-gray-700 hover:bg-gray-300'
+                  key={tab.value}
+                  onClick={() => setPaymentStatus(tab.value)}
+                  className={`rounded-full px-4 py-2 text-sm font-semibold transition ${
+                    paymentStatus === tab.value
+                      ? "bg-slate-900 text-white"
+                      : "border border-slate-300 bg-white text-slate-700 hover:bg-slate-100"
                   }`}
                 >
-                  {status.charAt(0).toUpperCase() + status.slice(1)}
+                  {tab.label}
                 </button>
               ))}
             </div>
-            
-            <div className="grid grid-cols-1 gap-6">
-              {currentOrders.length === 0 ? (
-                <p className="text-center text-gray-600">No {selectedStatus} orders found.</p>
-              ) : (
-                currentOrders.map((order) => (
-                  <div key={order._id} className="bg-white p-6 rounded-xl shadow-md border border-gray-200">
-                    <div className="flex justify-between items-start mb-4 border-b pb-4">
-                      <div>
-                        <h2 className="text-lg font-bold text-gray-800">Order #{order._id.substring(0, 8)}</h2>
-                        <p className="text-sm text-gray-500">Placed on: {formatDate(order.createdAt)}</p>
-                      </div>
-                      <div className="text-right flex flex-col items-end space-y-1">
-                        <p className="text-xs text-gray-500 mt-1">
-                          Delivery Status: <span className={`px-2 py-1 text-xs font-semibold rounded-full ${getStatusClasses(order.orderStatus)}`}>
-                            {order.orderStatus.charAt(0).toUpperCase() + order.orderStatus.slice(1)}
-                          </span>
-                        </p>
-                        <p className="text-xs text-gray-500 mt-1">
-                          Payment Status: <span className={`px-2 py-1 text-xs font-semibold rounded-full ${getStatusClasses(order.paymentStatus)}`}>
-                            {order.paymentStatus.charAt(0).toUpperCase() + order.paymentStatus.slice(1)}
-                          </span>
-                        </p>
-                      </div>
-                    </div>
-    
-                    <div className="mb-4">
-                      <h3 className="font-semibold text-gray-700 mb-2">Items:</h3>
-                      <ul className="space-y-2">
-                        {order.items.map((item, index) => (
-                          <li key={index} className="flex items-center text-sm text-gray-600">
-                            <Image
-                              src={item.image || `/placeholder-image.png`}
-                              alt={item.name}
-                              width={40}
-                              height={40}
-                              className="rounded mr-3 object-cover"
-                            />
-                            <span>{item.name} ({item.quantity} pcs) - ₦{item.price.toLocaleString()}</span>
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-    
-                    <div className="flex justify-between items-center border-t pt-4">
-                      <p className="text-lg font-bold text-gray-900">Total: ₦{order.totalAmount.toLocaleString()}</p>
-                    </div>
-                  </div>
-                )))}
 
+            {error && (
+              <div className="rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-rose-700">
+                <p>{error}</p>
+                <button
+                  onClick={() => fetchOrders()}
+                  className="mt-2 text-sm font-semibold text-rose-800 underline"
+                >
+                  Retry
+                </button>
               </div>
-              
-              {/* NEW: Pagination Controls */}
-              {totalPages > 1 && (
-                <div className="flex justify-center items-center space-x-4 mt-8">
+            )}
+
+            {loading ? (
+              <div className="flex h-56 items-center justify-center rounded-2xl border border-slate-200 bg-white">
+                <div className="h-12 w-12 animate-spin rounded-full border-4 border-slate-200 border-t-sky-500" />
+              </div>
+            ) : orders.length === 0 ? (
+              <div className="rounded-2xl border border-slate-200 bg-white p-10 text-center">
+                <h3 className="text-2xl font-bold text-slate-900">No Orders Yet</h3>
+                <p className="mt-2 text-slate-600">Shop products to place your first order and track it here.</p>
+                <Link
+                  href="/products"
+                  className="mt-6 inline-block rounded-full bg-slate-900 px-6 py-3 text-sm font-semibold uppercase tracking-[0.08em] text-white hover:bg-sky-700"
+                >
+                  Shop Products
+                </Link>
+              </div>
+            ) : (
+              <div className="space-y-4">
+                {orders.map((order) => (
+                  <article key={order._id} className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm">
+                    <div className="flex flex-col gap-3 border-b border-slate-200 pb-4 sm:flex-row sm:items-center sm:justify-between">
+                      <div>
+                        <h2 className="text-lg font-bold text-slate-900">Order #{String(order._id).slice(-8).toUpperCase()}</h2>
+                        <p className="text-sm text-slate-500">Placed {formatDate(order.createdAt)}</p>
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        <span className={`rounded-full border px-3 py-1 text-xs font-semibold capitalize ${statusBadgeClass(order.paymentStatus)}`}>
+                          Payment: {order.paymentStatus || "pending"}
+                        </span>
+                        <span className={`rounded-full border px-3 py-1 text-xs font-semibold capitalize ${statusBadgeClass(order.orderStatus)}`}>
+                          Delivery: {order.orderStatus || "pending"}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="mt-4 space-y-2">
+                      {(order.items || []).map((item, index) => (
+                        <div key={`${item.productId || "item"}-${index}`} className="flex items-center justify-between gap-4 rounded-xl border border-slate-100 px-3 py-2">
+                          <div className="min-w-0">
+                            <p className="truncate text-sm font-semibold text-slate-800">{item.name || "Product"}</p>
+                            <p className="text-xs text-slate-500">
+                              Qty {item.quantity || 1}
+                              {item.selectedColor ? ` • Color: ${item.selectedColor}` : ""}
+                            </p>
+                          </div>
+                          <p className="text-sm font-semibold text-slate-900">{formatCurrency(item.price)}</p>
+                        </div>
+                      ))}
+                    </div>
+
+                    <div className="mt-4 flex items-center justify-between border-t border-slate-200 pt-4">
+                      <p className="text-xs uppercase tracking-[0.12em] text-slate-500">{order.method || "delivery"}</p>
+                      <p className="text-lg font-bold text-slate-900">{formatCurrency(order.totalAmount)}</p>
+                    </div>
+                  </article>
+                ))}
+
+                <div className="flex items-center justify-center gap-3 pt-4">
                   <button
-                    onClick={() => handlePageChange('prev')}
-                    disabled={currentPage === 1}
-                    className="px-4 py-2 text-sm font-semibold text-gray-700 bg-gray-200 rounded-lg hover:bg-gray-300 disabled:opacity-50 disabled:cursor-not-allowed"
+                    onClick={() => setPage((prev) => Math.max(prev - 1, 1))}
+                    disabled={page === 1}
+                    className="rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-50"
                   >
                     Previous
                   </button>
-                  <span className="text-sm text-gray-600">
-                    Page {currentPage} of {totalPages}
+                  <span className="rounded-full bg-slate-900 px-4 py-1.5 text-sm font-semibold text-white">
+                    Page {page} of {totalPages}
                   </span>
                   <button
-                    onClick={() => handlePageChange('next')}
-                    disabled={currentPage === totalPages}
-                    className="px-4 py-2 text-sm font-semibold text-gray-700 bg-gray-200 rounded-lg hover:bg-gray-300 disabled:opacity-50 disabled:cursor-not-allowed"
+                    onClick={() => setPage((prev) => Math.min(prev + 1, totalPages))}
+                    disabled={page === totalPages}
+                    className="rounded-xl border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-100 disabled:cursor-not-allowed disabled:opacity-50"
                   >
                     Next
                   </button>
                 </div>
-              )}
-            </div>
+              </div>
+            )}
+          </div>
         )}
-        </div>
-      </div>
+      </section>
+    </main>
   );
 }

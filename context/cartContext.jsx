@@ -1,110 +1,211 @@
-// src/context/cartContext.js
 "use client";
 
-import { createContext, useContext, useState, useEffect, useCallback } from "react";
+import { createContext, useCallback, useContext, useEffect, useRef, useState } from "react";
 import { toast } from "react-toastify";
-import 'react-toastify/dist/ReactToastify.css';
+import "react-toastify/dist/ReactToastify.css";
 
-// Create the CartContext
 const CartContext = createContext();
 
-/**
- * CartProvider component that manages the cart state and provides it to its children.
- * @param {object} { children } - React children to be rendered within the context.
- */
+const normalizeColor = (color) => (color ? String(color).toLowerCase().trim() : "");
+const normalizeUser = (value) => {
+  if (!value || typeof value !== "object") return null;
+  const id = value._id || value.id;
+  if (!id) return null;
+  return { ...value, id, _id: id };
+};
+
+const normalizeCartItem = (item) => {
+  const productId = item.productId || item._id;
+  return {
+    productId,
+    _id: productId,
+    title: item.title || item.name || "Product",
+    price: item.price,
+    image: item.image,
+    quantity: Number(item.quantity) > 0 ? Number(item.quantity) : 1,
+    color: normalizeColor(item.color),
+  };
+};
+
 export function CartProvider({ children }) {
-  // State to hold the current cart items. Initialized from sessionStorage.
   const [cartItems, setCartItems] = useState(() => {
-    if (typeof window !== "undefined") {
-      const storedCart = sessionStorage.getItem("cartItems");
-      return storedCart ? JSON.parse(storedCart) : [];
+    if (typeof window === "undefined") return [];
+
+    try {
+      const stored = sessionStorage.getItem("cartItems");
+      const parsed = stored ? JSON.parse(stored) : [];
+      return Array.isArray(parsed) ? parsed.map(normalizeCartItem) : [];
+    } catch {
+      return [];
     }
-    return [];
   });
-  
-  // State to hold the authenticated user information
-  const [user, setUser] = useState(null);
-  
-  // State to indicate if the initial context data (user, cart) is loading
+
+  const [user, setUser] = useState(() => {
+    if (typeof window === "undefined") return null;
+    try {
+      const stored = sessionStorage.getItem("user");
+      return stored ? normalizeUser(JSON.parse(stored)) : null;
+    } catch {
+      return null;
+    }
+  });
+
   const [loading, setLoading] = useState(true);
 
-  // New: A single, robust function to fetch both the user session and their cart
-  const fetchSessionAndCart = useCallback(async () => {
-    try {
-      const res = await fetch("/api/auth/session", {
-        cache: "no-store",
-        credentials: "include",
-      });
+  const saveTimerRef = useRef(null);
+  const saveInFlightRef = useRef(false);
 
-      if (!res.ok) {
-        // No active session or failed fetch. Clear user and cart state.
-        setUser(null);
-        setCartItems([]);
-        sessionStorage.removeItem("user");
-        return;
-      }
+  const persistLocalCart = useCallback((nextCart) => {
+    if (typeof window === "undefined") return;
+    sessionStorage.setItem("cartItems", JSON.stringify(nextCart));
+  }, []);
 
-      const { user: loggedInUser } = await res.json();
-      
-      // Update user state and store it
-      setUser(loggedInUser);
-      sessionStorage.setItem("user", JSON.stringify(loggedInUser));
-
-      // Fetch the cart associated with the authenticated user
-      const cartRes = await fetch(`/api/cart/${loggedInUser._id}`, {
-        cache: "no-store",
-        credentials: "include",
-      });
-      
-      if (cartRes.ok) {
-        const data = await cartRes.json();
-        const normalizedCart = (data.cart || []).map(item => ({
-          ...item,
-          productId: item.productId || item._id,
-          color: item.color ? item.color.toLowerCase().trim() : ""
-        }));
-        setCartItems(normalizedCart);
-      } else {
-        setCartItems([]);
-        console.error("Failed to fetch cart:", cartRes.statusText);
-      }
-
-    } catch (err) {
-      console.error("Error fetching session or cart:", err);
-      setUser(null);
-      setCartItems([]);
-      sessionStorage.clear(); // Clear potentially corrupted session data
-    } finally {
-      setLoading(false); // Set loading to false once the check is complete
+  const applyLoggedOutState = useCallback(() => {
+    setUser(null);
+    setCartItems([]);
+    if (typeof window !== "undefined") {
+      sessionStorage.removeItem("user");
+      sessionStorage.removeItem("cartItems");
     }
   }, []);
 
-  // Effect hook to run initial data loading once on component mount
-  useEffect(() => {
-    fetchSessionAndCart();
-    
-    // Set up a periodic check to keep the session fresh
-    const interval = setInterval(fetchSessionAndCart, 10000); // e.g., every 10 seconds
-    return () => clearInterval(interval);
-  }, [fetchSessionAndCart]);
-
-  // A helper function to save the cart to the database
-  const saveCartToDB = async (newCart) => {
-    if (!user?._id) {
-      console.warn("No user logged in, cart not saved to DB.");
+  const loadUserCart = useCallback(async (loggedInUser, signal) => {
+    const normalizedUser = normalizeUser(loggedInUser);
+    if (!normalizedUser?._id) {
+      applyLoggedOutState();
       return;
     }
-    try {
-      await fetch("/api/cart/save", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ userId: user._id, cart: newCart }),
-      });
-    } catch (err) {
-      console.error("Error saving cart:", err);
-      // toast.error("Failed to update cart. Please try again.");
+
+    setUser(normalizedUser);
+    if (typeof window !== "undefined") {
+      sessionStorage.setItem("user", JSON.stringify(normalizedUser));
     }
-  };
+
+    const cartRes = await fetch(`/api/cart/${normalizedUser._id}`, {
+      cache: "no-store",
+      credentials: "include",
+      signal,
+    });
+
+    if (!cartRes.ok) {
+      setCartItems([]);
+      persistLocalCart([]);
+      return;
+    }
+
+    const data = await cartRes.json();
+    const normalized = Array.isArray(data.cart) ? data.cart.map(normalizeCartItem) : [];
+    setCartItems(normalized);
+    persistLocalCart(normalized);
+  }, [applyLoggedOutState, persistLocalCart]);
+
+  const fetchSessionAndCart = useCallback(async (signal) => {
+    try {
+      const sessionRes = await fetch("/api/auth/session", {
+        cache: "no-store",
+        credentials: "include",
+        signal,
+      });
+
+      if (!sessionRes.ok) {
+        applyLoggedOutState();
+        return;
+      }
+
+      const { user: loggedInUser } = await sessionRes.json();
+      await loadUserCart(loggedInUser, signal);
+    } catch (err) {
+      if (err?.name !== "AbortError") {
+        console.error("CartContext: fetchSessionAndCart failed", err);
+      }
+    } finally {
+      setLoading(false);
+    }
+  }, [applyLoggedOutState, loadUserCart]);
+
+  useEffect(() => {
+    const controller = new AbortController();
+    fetchSessionAndCart(controller.signal);
+
+    const refresh = () => {
+      const c = new AbortController();
+      fetchSessionAndCart(c.signal);
+      setTimeout(() => c.abort(), 7000);
+    };
+
+    const onVisibility = () => {
+      if (document.visibilityState === "visible") refresh();
+    };
+
+    window.addEventListener("focus", refresh);
+    document.addEventListener("visibilitychange", onVisibility);
+
+    const onAuthChanged = (event) => {
+      const { type, user: payloadUser } = event?.detail || {};
+      if (type === "logout") {
+        applyLoggedOutState();
+        setLoading(false);
+        return;
+      }
+
+      const normalizedUser = normalizeUser(payloadUser);
+      if (normalizedUser?._id) {
+        const c = new AbortController();
+        setLoading(false);
+        loadUserCart(normalizedUser, c.signal).catch((err) => {
+          if (err?.name !== "AbortError") {
+            console.error("CartContext: auth change sync failed", err);
+          }
+        });
+        setTimeout(() => c.abort(), 7000);
+        return;
+      }
+
+      refresh();
+    };
+
+    window.addEventListener("auth:changed", onAuthChanged);
+
+    return () => {
+      controller.abort();
+      window.removeEventListener("focus", refresh);
+      document.removeEventListener("visibilitychange", onVisibility);
+      window.removeEventListener("auth:changed", onAuthChanged);
+      if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+    };
+  }, [applyLoggedOutState, fetchSessionAndCart, loadUserCart]);
+
+  const saveCartToDB = useCallback((nextCart) => {
+    if (!user?._id) return;
+
+    if (saveTimerRef.current) clearTimeout(saveTimerRef.current);
+
+    saveTimerRef.current = setTimeout(async () => {
+      if (saveInFlightRef.current) return;
+      saveInFlightRef.current = true;
+
+      try {
+        await fetch("/api/cart/save", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ userId: user._id, cart: nextCart }),
+        });
+      } catch (err) {
+        console.error("CartContext: saveCartToDB failed", err);
+      } finally {
+        saveInFlightRef.current = false;
+      }
+    }, 250);
+  }, [user?._id]);
+
+  const updateCart = useCallback((updater) => {
+    setCartItems((prev) => {
+      const next = updater(prev).map(normalizeCartItem);
+      persistLocalCart(next);
+      saveCartToDB(next);
+      return next;
+    });
+  }, [persistLocalCart, saveCartToDB]);
 
   const addItemToCart = useCallback((product, selectedColor) => {
     if (!user?._id) {
@@ -112,83 +213,77 @@ export function CartProvider({ children }) {
       return;
     }
 
-    const normalizedColor = selectedColor ? selectedColor.toLowerCase().trim() : "";
-    
-    setCartItems((prevItems) => {
-      const existingItemIndex = prevItems.findIndex(
-        (item) => item.productId === product._id && item.color === normalizedColor
-      );
+    const productId = product?._id || product?.productId;
+    if (!productId) return;
 
-      let newCart;
-      if (existingItemIndex > -1) {
-        newCart = prevItems.map((item, index) =>
-          index === existingItemIndex
-            ? { ...item, quantity: item.quantity + (product.quantity || 1) }
-            : item
+    const color = normalizeColor(selectedColor ?? product?.color);
+    const incomingQty = Number(product?.quantity) > 0 ? Number(product.quantity) : 1;
+
+    updateCart((prev) => {
+      const idx = prev.findIndex((item) => item.productId === productId && normalizeColor(item.color) === color);
+
+      if (idx >= 0) {
+        return prev.map((item, i) =>
+          i === idx ? { ...item, quantity: item.quantity + incomingQty } : item
         );
-      } else {
-        newCart = [
-          ...prevItems,
-          {
-            productId: product._id,
-            title: product.title,
-            price: product.price,
-            image: product.image, 
-            color: normalizedColor,
-            quantity: product.quantity || 1,
-          },
-        ];
       }
-      saveCartToDB(newCart); // This now calls the stable saveCartToDB
-      return newCart;
-    });
-  }, [user, saveCartToDB]); // Dependencies: user and the memoized saveCartToDB
 
-  // Memoize removeFromCart
+      return [
+        ...prev,
+        {
+          productId,
+          _id: productId,
+          title: product.title || product.name,
+          price: product.price,
+          image: product.image,
+          color,
+          quantity: incomingQty,
+        },
+      ];
+    });
+  }, [updateCart, user?._id]);
+
   const removeFromCart = useCallback((productId, color) => {
-    const normalizedColor = color ? color.toLowerCase().trim() : "";
-    setCartItems((prevItems) => {
-      const newCart = prevItems.filter(
-        (item) => !(item.productId === productId && item.color === normalizedColor)
-      );
-      saveCartToDB(newCart); // This now calls the stable saveCartToDB
-      return newCart;
-    });
-  }, [saveCartToDB]); // Dependency: the memoized saveCartToDB
+    const normalizedColor = normalizeColor(color);
 
-  // Memoize clearCart
+    updateCart((prev) =>
+      prev.filter((item) => !(item.productId === productId && normalizeColor(item.color) === normalizedColor))
+    );
+  }, [updateCart]);
+
   const clearCart = useCallback(() => {
     setCartItems([]);
-    saveCartToDB([]); // This now calls the stable saveCartToDB
-  }, [saveCartToDB]); // Dependency: the memoized saveCartToDB
+    persistLocalCart([]);
+    saveCartToDB([]);
+  }, [persistLocalCart, saveCartToDB]);
 
-  // Memoize updateQuantity
   const updateQuantity = useCallback((productId, color, newQuantity) => {
-    const normalizedColor = color ? color.toLowerCase().trim() : "";
-    setCartItems((prevItems) => {
-        const updatedCart = prevItems
-            .map((item) =>
-                item.productId === productId && item.color === normalizedColor
-                    ? { ...item, quantity: newQuantity }
-                    : item
-            )
-            .filter((item) => item.quantity > 0);
-        saveCartToDB(updatedCart); // This now calls the stable saveCartToDB
-        return updatedCart;
-    });
-  }, [saveCartToDB]);
+    const normalizedColor = normalizeColor(color);
+    const quantity = Number(newQuantity);
+
+    if (!Number.isFinite(quantity)) return;
+
+    updateCart((prev) =>
+      prev
+        .map((item) =>
+          item.productId === productId && normalizeColor(item.color) === normalizedColor
+            ? { ...item, quantity }
+            : item
+        )
+        .filter((item) => item.quantity > 0)
+    );
+  }, [updateCart]);
 
   const logout = useCallback(() => {
-    setUser(null);
-    setCartItems([]);
-    sessionStorage.removeItem("user");
-    // You can optionally call saveCartToDB([]) here if you want to clear the DB as well
-  }, []);
+    applyLoggedOutState();
+  }, [applyLoggedOutState]);
 
-  const cartTotal = cartItems.reduce(
-    (total, item) => total + item.price * item.quantity,
-    0
-  );
+  const cartTotal = cartItems.reduce((total, item) => {
+    const price = typeof item.price === "number"
+      ? item.price
+      : parseFloat(String(item.price || "").replace(/[^0-9.]/g, "")) || 0;
+    return total + price * item.quantity;
+  }, 0);
 
   return (
     <CartContext.Provider
@@ -202,6 +297,7 @@ export function CartProvider({ children }) {
         user,
         loading,
         logout,
+        refreshSession: fetchSessionAndCart,
       }}
     >
       {children}

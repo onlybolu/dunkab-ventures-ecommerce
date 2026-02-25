@@ -5,12 +5,12 @@ import { useEffect, useState, useRef } from "react";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import { useCart } from "../../../../context/cartContext";
-import { toast, ToastContainer } from "react-toastify";
+import { ToastContainer } from "react-toastify";
 import 'react-toastify/dist/ReactToastify.css';
 
 export default function PaymentStatusPage() {
   const searchParams = useSearchParams();
-  const { clearCart } = useCart();
+  const { clearCart, refreshSession } = useCart();
   const [status, setStatus] = useState("pending");
   const [message, setMessage] = useState("Processing your payment...");
 
@@ -20,17 +20,18 @@ export default function PaymentStatusPage() {
     const paymentStatus = searchParams.get("status");
 
     if (paymentStatus === "successful") {
-      clearCart();
-      hasClearedCart.current = true;
+      if (!hasClearedCart.current) {
+        clearCart();
+        hasClearedCart.current = true;
+      }
       setStatus("successful");
       setMessage("Payment Successful! Your order has been placed.");
-      // toast.success("Your payment was successful!");
+      refreshSession();
     } else if (paymentStatus === "cancelled" || paymentStatus === "failed") {
       setStatus("failed");
       setMessage("Payment Failed. Please try again.");
-      // toast.error("Payment failed. Please check your details and try again.");
     }
-  }, []); 
+  }, [clearCart, refreshSession, searchParams]); 
 
   const getIcon = () => {
     if (status === "successful") {
