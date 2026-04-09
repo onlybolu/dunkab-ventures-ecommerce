@@ -88,7 +88,7 @@ export async function GET(request) {
       }
     }
 
-    await Order.findByIdAndUpdate(orderId, { paymentStatus, orderStatus }, { new: true });
+    await Order.findByIdAndUpdate(orderId, { paymentStatus, orderStatus, paymentMethod }, { new: true });
 
     await Payment.findOneAndUpdate(
       { orderId },

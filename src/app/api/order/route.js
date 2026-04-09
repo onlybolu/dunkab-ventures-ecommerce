@@ -92,12 +92,14 @@ export async function POST(request) {
 
     const cleanedItems = items.map((item) => {
       const quantity = Math.max(1, Math.floor(toNumber(item?.quantity, 1)));
+      const color = item?.selectedColor || item?.color || "";
       return {
         productId: item?.productId || item?._id,
         name: item?.name || item?.title || "Product",
         price: normalizePrice(item?.price),
         quantity,
-        selectedColor: item?.selectedColor || item?.color || "",
+        color: color,
+        selectedColor: color,
         image: item?.image || "",
       };
     });
@@ -155,6 +157,7 @@ export async function POST(request) {
       user: sessionUserId,
       items: cleanedItems,
       method: normalizedMethod,
+      paymentMethod: body?.paymentMethod || "card",
       deliveryInfo: {
         name,
         email,
@@ -169,6 +172,7 @@ export async function POST(request) {
       paymentStatus: normalizedPaymentStatus,
       orderStatus: resolveOrderStatus(normalizedPaymentStatus),
     });
+
 
     return NextResponse.json({ success: true, order }, { status: 201 });
   } catch (error) {

@@ -10,10 +10,12 @@ const OrderSchema = new mongoose.Schema({
     name: String,
     price: Number,
     quantity: Number,
+    color: String,
     selectedColor: String,
     image: String,
   }],
-  method: { type: String, required: true }, 
+  method: { type: String, required: true }, // delivery / pickup
+  paymentMethod: { type: String, default: 'card' }, // card / cash
   deliveryInfo: {
     name: String,
     email: String,
@@ -32,4 +34,5 @@ const OrderSchema = new mongoose.Schema({
 });
 
 export default mongoose.models.Order || mongoose.model('Order', OrderSchema);
+
 
